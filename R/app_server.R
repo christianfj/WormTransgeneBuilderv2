@@ -182,13 +182,15 @@ app_server <- function(input, output, session) {
                                 "7"  = "CAI1",
                                 "6"  = "GLO")
 
-    # The "High expression" (CAI1) method makes no random choices, so it needs no seed.
+    # The "High expression" (CAI1) method makes no random choices (unless the ribosome-binding-site step is on, see below), so it needs no seed.
     # "No codon optimization" only makes random choices when it removes restriction or
     # piRNA sites; those are kept repeatable with a seed that applies to the
     # optimization call alone (see below). The seed must never be set globally: it
     # would also fix later random choices, such as which synthetic introns are picked,
     # and would affect every other user of this R process.
-    seed_for_method <- if (opt_method_choice == "None") 12345 else NULL
+    # With the ribosome-binding-site step "High expression" also draws random candidates for the start,
+    # so that run gets a fixed seed too and stays repeatable.
+    seed_for_method <- if (opt_method_choice == "None" || (opt_method_choice == "CAI1" && isTRUE(input$checkboxRibo))) 12345 else NULL
 
     enzymes_to_remove <- if (input$checkEnzySites) input$Oenzymes else NULL
 

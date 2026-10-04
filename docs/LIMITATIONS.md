@@ -13,7 +13,7 @@ This is a beta release. Please check designs before ordering synthesis.
 * Some restriction sites cannot be removed without changing the protein (for example `ACNGT` in a Thr-Val pair). The app warns and lists them.
 * Selecting very many enzymes at once is slow, leaves many unremovable sites and limits how far the sequence can be optimized. There is deliberately no "select all" button.
 * The piRNA shield for the random methods makes a single pass, so a window can remain under the threshold; the High-expression shield stops with a warning when no synonymous change can help.
-* For the High-expression method the ribosome-binding-site step has only two candidates to choose from (the input start and its High-expression recoding), because that method has no alternative codons.
+* With High expression, the ribosome-binding-site step recodes the first 13 codons using graded codon weights (not only the single best codon), so those codons are not all best codons.
 
 **Known issues (not changed in this release)**
 * Random methods give a different sequence each time, apart from "No codon optimization" (fixed seed) and High expression (no random choices).

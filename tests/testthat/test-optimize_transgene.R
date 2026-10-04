@@ -279,3 +279,49 @@ test_that("all options together produce a consistent construct", {
   expect_true(startsWith(res$final_seq, "acgtacgtttttaaaaATG"))
   expect_true(endsWith(res$final_seq, "cccc"))
 })
+
+# ---- "High expression" with the ribosome-binding-site step -----------------------------------------------
+# The start is chosen among versions drawn with the graded weights (never the input codons), and the
+# rest of the gene is recoded to the best codons.
+
+test_that("High expression + RBS always recodes the start, keeps the protein, and the rest is all best codons", {
+  skip_if(Sys.which("RNAfold") == "", "RNAfold (ViennaRNA) is not on the PATH")
+  worst <- paste0("ATG", "AAA", "AAT", "GCA", "CTA", "GAA", "ACA", "TCA", "CCA", "GTA", "GGA", "ATA", "CAA")
+  cds <- paste0(worst, strrep("GCAAAACTAGAA", 10), "TAA")
+  for (s in 1:4) {
+    set.seed(s)
+    res <- optimize_transgene(cds, opt_method = "CAI1", enzymes = NULL, remove_pirnas = FALSE, rbs_opt = TRUE)
+    out <- res$optimized_cds
+    expect_identical(protein_of(out), protein_of(cds), info = s)
+    expect_false(identical(substr(out, 1, 39), worst), info = s)
+    expect_identical(substr(out, 40, nchar(out)), probabilistic_recode(substr(cds, 40, nchar(cds)), "CAI1"), info = s)
+  }
+})
+
+test_that("High expression + RBS without RNAfold still recodes the start (deterministically)", {
+  testthat::local_mocked_bindings(find_rnafold = function(...) "")
+  worst <- paste0("ATG", "AAA", "AAT", "GCA", "CTA", "GAA", "ACA", "TCA", "CCA", "GTA", "GGA", "ATA", "CAA")
+  cds <- paste0(worst, strrep("GCAAAACTAGAA", 10), "TAA")
+  res <- suppressWarnings(optimize_transgene(cds, opt_method = "CAI1", enzymes = NULL, remove_pirnas = FALSE, rbs_opt = TRUE))
+  expect_identical(res$optimized_cds, probabilistic_recode(cds, "CAI1"))
+})
+
+test_that("in the app, High expression + RBS is repeatable (a fixed seed is used)", {
+  skip_if(Sys.which("RNAfold") == "", "RNAfold (ViennaRNA) is not on the PATH")
+  cds <- paste0("ATG", strrep("GCAAAACTAGAA", 12), "TAA")
+  run <- function() {
+    html <- NULL
+    shiny::testServer(app_server, {
+      session$setInputs(
+        intypeinput = 1, nameinput = "t", seqDNA = cds, seqPROT = "", selectCAI = "7",
+        checkEnzySites = FALSE, Oenzymes = NULL, checkPirna = FALSE, selectPiMM = 3, checkTags = FALSE,
+        checkIntron = FALSE, intropt = "rps-0", num_synth_introns = 1, checkUTRs = FALSE,
+        checkPromoters = FALSE, checkboxRibo = TRUE, checkfouras = FALSE, checkTwisty = FALSE,
+        checkintframe = TRUE, intdistop = "1")
+      session$setInputs(actionSeq = 1)
+      html <<- as.character(output$opt_sequence_viewer$html)
+    })
+    gsub("\n", "", sub(".*new Sequence\\('([^']*)'\\).*", "\\1", gsub("\n", "", html)))
+  }
+  expect_identical(run(), run())
+})

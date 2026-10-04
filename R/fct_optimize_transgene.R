@@ -184,17 +184,22 @@ find_rnafold <- function(on_path = Sys.which("RNAfold"),
 #' @param cds_start_seq Character string; the first 39bp of the CDS.
 #' @param usage_column_name Character string; the frequency column used for generating candidate sequences.
 #' @param num_candidates Integer; the number of candidate sequences to generate and test.
+#' @param include_input Logical; if TRUE (the default) the input start is one of the candidates. The
+#'   "High expression" method sets this to FALSE so that the start is always recoded.
+#' @param fallback_seq Character string; what is returned if RNAfold is missing or fails (the input
+#'   start by default).
 #' @return A character string containing the optimized start sequence.
 #' @export
-optimize_rbs <- function(cds_start_seq, usage_column_name, num_candidates = 100) {
+optimize_rbs <- function(cds_start_seq, usage_column_name, num_candidates = 100,
+                         include_input = TRUE, fallback_seq = cds_start_seq) {
   rnafold_bin <- find_rnafold()
 
   if (rnafold_bin == "") {
     warning("RNAfold binary not found in path. Skipping RBS optimization.")
-    return(cds_start_seq)
+    return(fallback_seq)
   }
 
-  candidates <- c(cds_start_seq)
+  candidates <- if (include_input) c(cds_start_seq) else character(0)
   for (i in 1:num_candidates) candidates <- c(candidates, probabilistic_recode(cds_start_seq, usage_column_name))
   candidates <- unique(candidates)
   fold_targets <- paste0("AAAA", candidates)
@@ -203,7 +208,7 @@ optimize_rbs <- function(cds_start_seq, usage_column_name, num_candidates = 100)
     system2(rnafold_bin, args = c("--noPS"), input = fold_targets, stdout = TRUE, stderr = FALSE)
   }, error = function(e) return(NULL))
 
-  if (is.null(rnafold_out) || length(rnafold_out) == 0) return(cds_start_seq)
+  if (is.null(rnafold_out) || length(rnafold_out) == 0) return(fallback_seq)
 
   struct_lines <- grep("\\(", rnafold_out, value = TRUE)
   energies <- numeric(length(candidates))
@@ -331,8 +336,17 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
     cds_rest  <- substr(current_seq, 40, nchar(current_seq))
     shield_col <- if(opt_method %in% c("None", "GLO", "Chance")) "Ubiq" else opt_method
 
-    # RBS Optimization executes instantly based solely on RNAfold MFE
-    best_start <- optimize_rbs(cds_start, shield_col, num_candidates = 100)
+    # RBS Optimization executes instantly based solely on RNAfold MFE.
+    # "High expression" (CAI1) has a single best codon per amino acid, so 100 draws would all be the same
+    # sequence. For the start we therefore draw from the graded codon weights (BringMansWeights, the
+    # weights its CAI is computed with): frequent codons stay likely, the candidates differ, and the
+    # least structured one is chosen. The input codons are not a candidate, so the start is always recoded.
+    if (opt_method == "CAI1") {
+      best_start <- optimize_rbs(cds_start, "BringMansWeights", num_candidates = 100, include_input = FALSE,
+                                 fallback_seq = probabilistic_recode(cds_start, "CAI1"))
+    } else {
+      best_start <- optimize_rbs(cds_start, shield_col, num_candidates = 100)
+    }
 
     if (opt_method == "GLO") best_rest <- optimize_glo(cds_rest)
     else if (opt_method != "None") best_rest <- probabilistic_recode(cds_rest, usage_column_name = opt_method)

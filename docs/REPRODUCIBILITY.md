@@ -46,7 +46,7 @@ One test drives the app in headless Chrome and is skipped if Chrome is absent.
 
 ## What results can be reproduced exactly
 
-* **High expression** and all restriction-site/piRNA choices under it: no random numbers; the same input always gives the same sequence.
+* **High expression** and all restriction-site/piRNA choices under it: no random numbers; the same input always gives the same sequence. (With the ribosome-binding-site step the start is drawn at random, so the app fixes the seed and the result is still repeatable.)
 * **No codon optimization:** fixed seed; the same input gives the same output.
 * **Ubiquitous, Random, GLO:** random choices; each run differs. Tests therefore check properties (same protein, sites removed, thresholds met) rather than exact sequences. For a fixed seed in a script, `set.seed()` before calling `optimize_transgene()` gives repeatable results with the same software versions.
 

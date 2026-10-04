@@ -56,12 +56,35 @@ test_that("the RBS start is reproducible for a fixed seed", {
   expect_identical(a, b)
 })
 
-test_that("in CAI1 mode the result is the input or the all-best-codon version", {
-  # CAI1 recoding is deterministic, so every candidate is one of these two.
+test_that("with include_input = FALSE the input start is never returned unchanged", {
   skip_without_rnafold()
+  # A start in which no codon is the best codon of its amino acid, so any recoding by the graded weights
+  # that picks a best codon somewhere differs from it; over several seeds it must differ every time.
+  worst <- paste0("ATG", "AAA", "AAT", "GCA", "CTA", "GAA", "ACA", "TCA", "CCA", "GTA", "GGA", "ATA", "CAA")
+  expect_equal(nchar(worst), 39)
+  for (s in 1:5) {
+    set.seed(s)
+    out <- optimize_rbs(worst, "BringMansWeights", include_input = FALSE)
+    expect_false(identical(out, worst), info = paste("seed", s))
+    expect_equal(protein_of(out), protein_of(worst), info = paste("seed", s))
+  }
+})
+
+test_that("graded weights give RNAfold many different High-expression candidates, not just one", {
   set.seed(1)
-  out <- optimize_rbs(rbs_start(), "CAI1")
-  expect_true(out %in% c(rbs_start(), probabilistic_recode(rbs_start(), "CAI1")))
+  candidates <- unique(replicate(100, probabilistic_recode(rbs_start(), "BringMansWeights")))
+  expect_gt(length(candidates), 50)
+  expect_length(unique(replicate(20, probabilistic_recode(rbs_start(), "CAI1"))), 1)  # the old behaviour
+})
+
+test_that("with RNAfold unavailable the fallback is returned (and a warning given)", {
+  withr::local_envvar(PATH = "/nonexistent")
+  testthat::local_mocked_bindings(find_rnafold = function(...) "")
+  expect_warning(out <- optimize_rbs(rbs_start(), "BringMansWeights", include_input = FALSE,
+                                     fallback_seq = "FALLBACK"), "RNAfold")
+  expect_identical(out, "FALLBACK")
+  expect_warning(out2 <- optimize_rbs(rbs_start(), "Ubiq"), "RNAfold")
+  expect_identical(out2, rbs_start())   # other methods: unchanged behaviour, the input start
 })
 
 test_that("a different number of candidates still returns a valid start", {
