@@ -7,13 +7,17 @@ Authors@R:
              role = c("aut", "cre"),
              email = "cfjensen@kaust.edu.sa",
              comment = "Project conceptualization, direction, and V2.0 re-architecture"),
+      person(given = "Sonia",
+             family = "El Mouridi",
+             role = "aut"),
       person(given = "Amhed M.",
              family = "Vargas-Velazquez",
              role = "aut",
              comment = "Original V1.0 software architecture"),
-      person(given = "Sonia",
-             family = "El Mouridi",
-             role = "aut"),
+      person(given = "Faisal",
+             family = "Alkhaldi",
+             role = "aut",
+             comment = "Software maintenance and feature additions"),
       person(given = "Sarah",
              family = "AlHarbi",
              role = "aut"),
@@ -26,11 +30,7 @@ Authors@R:
       person(given = "Daniel J.",
              family = "Dickinson",
              role = "aut",
-             comment = "Germline optimization (GLO) algorithm and scores"),
-      person(given = "Faisal",
-             family = "Alkhaldi",
-             role = "ctb",
-             comment = "Software maintenance and feature additions"))
+             comment = "Germline optimization (GLO) algorithm and scores"))
 Description: An interactive Shiny application for the biological optimization 
     of Caenorhabditis elegans transgenes. Features include germline optimization (GLO),
     piRNA shielding, restriction site removal, synthetic intron insertion, and 

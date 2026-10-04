@@ -207,3 +207,15 @@ test_that("the package ships exactly the datasets the code uses", {
   lazy <- asNamespace("WormTransgeneBuilder")[[".__NAMESPACE__."]][["lazydata"]]
   expect_setequal(ls(lazy), c("codon_freqs", "enzy", "glo_median_score", "pirna_sequences"))
 })
+
+
+test_that("every piRNA target is the reverse complement of the 21-base piRNA without its first base", {
+  # piRNAs pair with the sense transcript, so the stored 20-base target is already in sense orientation
+  # and the sense strand of a design is compared with it directly.
+  d <- extdata_csv("piRNA_Database.csv")
+  expect_false(anyNA(d$Target_20mer))
+  expect_true(all(nchar(d$Full_21mer) == 21))
+  expect_identical(d$Target_20mer, reverse_complement(substring(d$Full_21mer, 2, 21)))
+  expect_identical(as.character(WormTransgeneBuilder::pirna_sequences), d$Target_20mer)
+  expect_gt(mean(substr(d$Full_21mer, 1, 1) == "T"), 0.95)
+})

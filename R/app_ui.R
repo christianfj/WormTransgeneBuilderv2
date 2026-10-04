@@ -79,7 +79,7 @@ app_ui <- function(request) {
                                                                 sliderInput("num_synth_introns", "Number of Synthetic Introns", min=1, max=10, value=3, step=1),
                                                                 helpText("Average C. elegans exon length is 200 bp (Speith et al., Wormbook, 2014)")),
                                                radioButtons("intdistop", "Intron Placement", choices = list("Early start" = 1, "Equidistant" = 2), inline = TRUE),
-                                               checkboxInput("checkintframe", "Force in reading frame", value = FALSE)),
+                                               checkboxInput("checkintframe", "Force in reading frame", value = TRUE)),
 
                               checkboxInput("checkUTRs", "Append UTRs", value = FALSE),
                               conditionalPanel("input.checkUTRs == 1",

@@ -54,8 +54,12 @@ nothing. Because choices are random, two runs give different (similarly scoring)
 
 ## 3. piRNA homology removal
 
-The reference is a set of 17,849 *C. elegans* piRNA target sequences of 20 bases
-(`inst/extdata/piRNA_Database.csv`). For the designed sequence, every 20-base window is compared with every
+The database (`inst/extdata/piRNA_Database.csv`) holds 17,849 *C. elegans* piRNAs. For each, the 21-base
+piRNA (`Full_21mer`, 5' to 3'; 96.8 % begin with U/T) is stored together with its **target sequence**
+(`Target_20mer`): the reverse complement of the piRNA without its first base. This target is the 20-base
+stretch of the *sense* transcript to which the piRNA, which pairs with its target in the antisense
+orientation, would bind. The tests check that this holds for every entry. Because the target is already
+written in the sense orientation, windows of the designed (sense) sequence are compared with it directly. For the designed sequence, every 20-base window is compared with every
 piRNA and the **Hamming distance** (number of mismatching positions) is computed exactly
 (`get_pirna_distances()`; the comparison uses 2-bit-encoded bases, XOR and a lookup table, which gives the
 same numbers as comparing letters but is much faster, `R/fct_pirna_engine.R`). Windows are on the given
@@ -107,11 +111,16 @@ in the About tab and in the log (reference: Lorenz et al., ViennaRNA Package 2.0
 Native introns (rps-0, rps-5, rps-20 and the Fire-lab introns) or 1 to 10 synthetic introns (picked at
 random from a list of 1,000 sequences in `Synthetic_Introns.csv`) are inserted (`insert_introns()`).
 Placement is "early" (first intron near codon 50, then every 50 codons) or "equidistant" (evenly across the
-coding sequence). Each intron goes at the best nearby codon boundary (an intron is always inserted between two codons): within
-±15 codons of the target, a preceding codon `AAG` scores 3, `CAG` scores 2, `xAG` scores 1; the highest
-score wins, and the nearest wins ties. Introns are written in lower case. A warning is given when the
-average exon would be shorter than 150 bp. (The menu has a "Force in reading frame" tick box; at present it
-changes nothing, see [LIMITATIONS.md](LIMITATIONS.md).)
+coding sequence). Each intron goes at the best place within 15 codons (45 bases) either side of its target. A place scores 3
+if the three bases before the intron are `AAG`, 2 if they are `CAG` and 1 if they end in `AG`; the highest
+score wins, and the place nearest the target wins ties. Introns are written in lower case. A warning is
+given when the average exon would be shorter than 150 bp.
+
+The tick box **Force in reading frame** (ticked by default) decides where an intron may go. Ticked: only
+between two codons (the intron follows a complete codon, phase 0), so the three bases before the intron are
+a codon. Not ticked: after any base, so an intron can fall inside a codon (phase 1 or 2) and the
+`AAG`/`CAG` motif can straddle a codon boundary. The first intron is at least 15 bases from the start and
+every intron at least 15 bases from the end; introns are at least 30 bases apart.
 
 ## 7. Tags, promoters, UTRs
 

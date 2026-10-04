@@ -15,11 +15,14 @@ abstract: >-
   homology; removal of restriction sites; and the addition of C. elegans-specific standard bioparts
   such as promoters, introns, tags and UTRs, with export to GenBank.
 authors:
+  - family-names: "El Mouridi"
+    given-names: "Sonia"
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
   - family-names: "Vargas-Velazquez"
     given-names: "Amhed M."
     affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
-  - family-names: "El Mouridi"
-    given-names: "Sonia"
+  - family-names: "Alkhaldi"
+    given-names: "Faisal"
     affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
   - family-names: "AlHarbi"
     given-names: "Sarah"

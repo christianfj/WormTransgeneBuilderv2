@@ -74,8 +74,9 @@ archived on Zenodo with a DOI: *DOI to be added after the first release*.
 
 ## Authors and licence
 
-Amhed M. Vargas-Velazquez, Sonia El Mouridi, Sarah AlHarbi, Khlifa Alnaim, Henrik Bringmann, Daniel J.
-Dickinson and Christian Frøkjær-Jensen (corresponding author: cfjensen@kaust.edu.sa), Laboratory of
+Sonia El Mouridi\*, Amhed M. Vargas-Velazquez\*, Faisal Alkhaldi, Sarah AlHarbi, Khlifa Alnaim, Henrik
+Bringmann, Daniel J. Dickinson and Christian Frøkjær-Jensen (corresponding author: cfjensen@kaust.edu.sa;
+\* contributed equally), Laboratory of
 Synthetic Genome Biology, King Abdullah University of Science and Technology (KAUST), with the Technical
 University Dresden and the University of Texas at Austin. Released under the
 [GNU General Public License v3](LICENSE). The data tables have their own sources; see

@@ -6,10 +6,16 @@
 #' @param cds_seq Character string; the coding DNA sequence to modify.
 #' @param introns Character vector; the intron sequences to insert.
 #' @param spacing_type Character string; either "early" (front-loaded) or "equidistant".
+#' @param in_frame Logical; if TRUE (the default) an intron is always inserted between two codons
+#'   (phase 0). If FALSE it may be inserted after any base, so it can fall inside a codon.
+#' @details The best place for each intron is looked for within 15 codons (45 bases) either side of
+#'   its target. A place scores 3 if the three bases before the intron are AAG, 2 if they are CAG and 1
+#'   if they end in AG; the highest score wins and the place nearest the target wins a tie. With
+#'   `in_frame = TRUE` the three bases before the intron are one codon.
 #' @return A list containing the modified sequence (`seq`) and a numeric vector
-#'   of the insertion base pairs (`insertions`).
+#'   of the insertion base pairs (`insertions`), the number of bases of `cds_seq` before each intron.
 #' @export
-insert_introns <- function(cds_seq, introns, spacing_type = "early") {
+insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = TRUE) {
   cds_len <- nchar(cds_seq)
   num_introns <- length(introns)
   if (num_introns == 0) return(list(seq = cds_seq, insertions = numeric(0)))
@@ -39,6 +45,23 @@ insert_introns <- function(cds_seq, introns, spacing_type = "early") {
   for (i in 1:num_introns) {
     target_c <- target_codons[i]
     search_radius <- 15
+
+    if (!in_frame) {
+      # Any base may precede the intron: score every base position near the target, not just codon ends.
+      target_b <- target_c * 3
+      prev_b <- if (i == 1) 15 else actual_insertion_bps[i - 1] + 30
+      start_b <- max(prev_b, target_b - search_radius * 3)
+      end_b <- min(cds_len - 15, target_b + search_radius * 3)
+      if (start_b > end_b) {
+        actual_insertion_bps[i] <- target_b
+        next
+      }
+      positions <- start_b:end_b
+      last3 <- toupper(substring(cds_seq, positions - 2, positions))
+      scores <- ifelse(last3 == "AAG", 3, ifelse(last3 == "CAG", 2, ifelse(substr(last3, 2, 3) == "AG", 1, 0)))
+      actual_insertion_bps[i] <- positions[order(-scores, abs(positions - target_b))[1]]
+      next
+    }
     prev_boundary <- if(i == 1) 5 else (actual_insertion_bps[i-1]/3 + 10)
 
     possible_codons <- list()
@@ -233,7 +256,8 @@ back_translate <- function(prot_seq) {
 #' @param target_min_hamming Numeric; threshold for piRNA exclusion.
 #' @param introns Character vector; sequence strings for intron insertion.
 #' @param spacing_type Character string; intron distribution logic ("early" or "equidistant").
-#' @param force_reading_frame Logical; whether introns are forced outside of codon boundaries.
+#' @param force_reading_frame Logical; if TRUE introns are inserted only between codons (in the reading
+#'   frame, phase 0); if FALSE they may be inserted after any base.
 #' @param add_consensus_start Logical; whether to pad the 5' end with "aaaa".
 #' @param rbs_opt Logical; whether to invoke the ViennaRNA optimization step.
 #' @param promoter_seq Character string; sequence to prepend as a promoter.
@@ -345,7 +369,7 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
   if (!is.null(introns)) {
     introns <- tolower(gsub("[^ATGCatgc]", "", introns[!is.na(introns) & nchar(introns) > 0]))
     if (length(introns) > 0) {
-      intron_res <- insert_introns(current_seq, introns, spacing_type = spacing_type)
+      intron_res <- insert_introns(current_seq, introns, spacing_type = spacing_type, in_frame = force_reading_frame)
       current_seq <- intron_res$seq
       intron_insertions <- intron_res$insertions
       intron_lengths <- nchar(introns)
