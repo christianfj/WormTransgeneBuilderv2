@@ -104,8 +104,12 @@ test_that("in the real app the enzyme menu is grouped, empty at first, and has n
   chrome <- tryCatch(chromote::find_chrome(), error = function(e) NA_character_)
   skip_if(is.na(chrome) || !nzchar(chrome), "Chrome is not available")
 
+  # Chrome's own sandbox does not start inside containers or on CI runners that restrict user namespaces
+  # (Ubuntu 24.04). This test only opens the app on 127.0.0.1, so it runs Chrome without the sandbox.
+  chromote::set_chrome_args(c(chromote::default_chrome_args(), "--no-sandbox"))
   port <- start_app_in_background()
-  b <- chromote::ChromoteSession$new()
+  b <- tryCatch(chromote::ChromoteSession$new(), error = function(e) NULL)
+  skip_if(is.null(b), "Chrome could not be started here")
   withr::defer(b$close())
   b$Page$navigate(sprintf("http://127.0.0.1:%d", port))
   b$Page$loadEventFired()
