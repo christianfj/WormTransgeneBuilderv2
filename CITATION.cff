@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below. A manuscript describing the tool is in preparation; this file will be updated with its reference when it is available."
+title: "WormTransgeneBuilder: an online app for comprehensive C. elegans transgene design"
+type: software
+version: 2.0.0
+date-released: 2026-10-04
+license: GPL-3.0-only
+repository-code: "https://github.com/christianfj/WormTransgeneBuilderv2"
+url: "https://www.wormbuilder.org/transgenebuilder/"
+abstract: >-
+  Full gene synthesis is increasingly affordable and cost-effective relative to standard cloning.
+  WormTransgeneBuilder is a one-stop online app for designing C. elegans transgenes. It offers codon
+  adaptation algorithms for high expression, reduced germline silencing, or the stochastic use of
+  frequent endogenous codons; minimization of ribosomal binding site energy; removal of piRNA
+  homology; removal of restriction sites; and the addition of C. elegans-specific standard bioparts
+  such as promoters, introns, tags and UTRs, with export to GenBank.
+authors:
+  - family-names: "Vargas-Velazquez"
+    given-names: "Amhed M."
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
+  - family-names: "El Mouridi"
+    given-names: "Sonia"
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
+  - family-names: "AlHarbi"
+    given-names: "Sarah"
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
+  - family-names: "Alnaim"
+    given-names: "Khlifa"
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
+  - family-names: "Bringmann"
+    given-names: "Henrik"
+    affiliation: "Center for Molecular and Cellular Bioengineering (CMCB), Technical University Dresden, Dresden, Germany"
+  - family-names: "Dickinson"
+    given-names: "Daniel J."
+    affiliation: "Department of Molecular Biosciences, University of Texas at Austin, Austin, TX, USA"
+  - family-names: "Frøkjær-Jensen"
+    given-names: "Christian"
+    email: "cfjensen@kaust.edu.sa"
+    affiliation: "King Abdullah University of Science and Technology (KAUST), Thuwal, Saudi Arabia"
+keywords:
+  - Caenorhabditis elegans
+  - transgene design
+  - codon optimization
+  - piRNA
+  - germline expression

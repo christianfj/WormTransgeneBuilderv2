@@ -1,0 +1,19 @@
+# The image is built from an explicit list of files (see the COPY lines in the Dockerfile); this
+# keeps the build context small and keeps private files out of it.
+.git
+.Rproj.user
+.Rhistory
+.Renviron
+.env
+*.pem
+*.tar
+renv/library
+renv/local
+renv/cellar
+renv/staging
+.DS_Store
+deployment_notes.txt
+CLAUDE.md
+dev
+docs
+tests

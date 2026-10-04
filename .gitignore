@@ -1,0 +1,16 @@
+# R / RStudio
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# macOS
+.DS_Store
+
+# Secrets and keys
+*.pem
+.env
+.Renviron
+
+# Docker deployment tarballs
+*.tar

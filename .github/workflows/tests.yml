@@ -1,0 +1,45 @@
+# Runs the whole automated test suite on R 4.5.3 / Ubuntu 24.04 with the packages pinned in renv.lock
+# and the same ViennaRNA the Docker image uses. Runs on every push and pull request, by hand, and
+# once a month (to notice changes in the outside world early).
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 1 * *"
+
+permissions:
+  contents: read
+
+env:
+  # The same dated CRAN snapshot as the Dockerfile.
+  RENV_CONFIG_REPOS_OVERRIDE: https://p3m.dev/cran/__linux__/noble/2026-09-30
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get RNAfold 2.7.2 from the Dockerfile's ViennaRNA stage
+        run: |
+          docker build --target viennarna -t viennarna-stage .
+          id=$(docker create viennarna-stage)
+          docker cp "$id":/opt/viennarna/bin/RNAfold ./RNAfold
+          docker rm "$id"
+          sudo install -m 755 ./RNAfold /usr/local/bin/RNAfold
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends libgomp1
+          RNAfold --version
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.3"
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-renv@v2
+
+      - name: Run the tests
+        run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'

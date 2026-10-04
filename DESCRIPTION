@@ -1,0 +1,65 @@
+Package: WormTransgeneBuilder
+Title: C. elegans Transgene Optimization and Design
+Version: 2.0.0
+Authors@R: 
+    c(person(given = "Christian",
+             family = "Frøkjær-Jensen",
+             role = c("aut", "cre"),
+             email = "cfjensen@kaust.edu.sa",
+             comment = "Project conceptualization, direction, and V2.0 re-architecture"),
+      person(given = "Amhed M.",
+             family = "Vargas-Velazquez",
+             role = "aut",
+             comment = "Original V1.0 software architecture"),
+      person(given = "Sonia",
+             family = "El Mouridi",
+             role = "aut"),
+      person(given = "Sarah",
+             family = "AlHarbi",
+             role = "aut"),
+      person(given = "Khlifa",
+             family = "Alnaim",
+             role = "aut"),
+      person(given = "Henrik",
+             family = "Bringmann",
+             role = "aut"),
+      person(given = "Daniel J.",
+             family = "Dickinson",
+             role = "aut",
+             comment = "Germline optimization (GLO) algorithm and scores"),
+      person(given = "Faisal",
+             family = "Alkhaldi",
+             role = "ctb",
+             comment = "Software maintenance and feature additions"))
+Description: An interactive Shiny application for the biological optimization 
+    of Caenorhabditis elegans transgenes. Features include germline optimization (GLO),
+    piRNA shielding, restriction site removal, synthetic intron insertion, and 
+    Twist Bioscience synthesis validation.
+License: GPL-3
+URL: https://github.com/christianfj/WormTransgeneBuilderv2, https://www.wormbuilder.org/transgenebuilder/
+BugReports: https://github.com/christianfj/WormTransgeneBuilderv2/issues
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+    bslib,
+    config,
+    golem,
+    shiny,
+    shinyjs,
+    shinyWidgets,
+    stringdist
+Suggests: 
+    bench,
+    chromote,
+    devtools,
+    httpuv,
+    jsonlite,
+    pkgload,
+    processx,
+    rlang,
+    roxygen2,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
