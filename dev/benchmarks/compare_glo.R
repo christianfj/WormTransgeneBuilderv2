@@ -1,3 +1,4 @@
+# NOTE (2026-10-07): optimize_glo() was rewritten as a port of the original algorithm, so the old-vs-new identical-output check below no longer holds for optimize_glo (it still holds for calc_glo_score).
 # Compare the GLO functions before and after the score lookup was rewritten, back to back.
 #
 #   Rscript dev/benchmarks/compare_glo.R

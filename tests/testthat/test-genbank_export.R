@@ -56,10 +56,10 @@ test_that("the LOCUS date is today's date", {
 test_that("scores appear as comments only when they are supplied", {
   none <- export_genbank("t", gb_seq())
   expect_false(any(grepl("Codon Adaptation Index|GLO Score|COMMENT     GC", none)))
-  gb <- export_genbank("t", gb_seq(), cai_score = 0.96, gc_score = "40%", glo_score = "1,234")
+  gb <- export_genbank("t", gb_seq(), cai_score = 0.96, gc_score = "40%", glo_score = "1.23")
   expect_true("COMMENT     Codon Adaptation Index 0.96" %in% gb)
   expect_true("COMMENT     GC 40%" %in% gb)
-  expect_true("COMMENT     GLO Score 1,234" %in% gb)
+  expect_true("COMMENT     GLO Score per codon 1.23" %in% gb)
 })
 
 test_that("the input sequence and extra comments are written, one per line", {
@@ -208,7 +208,7 @@ test_that("the comments in the file record the settings and the scores", {
   expect_true(any(grepl("^Input sequence: ATGGCTAAG", p$comments)))
   expect_true(any(grepl("^Codon Adaptation Index [0-9.]+$", p$comments)))
   expect_true(any(grepl("^GC [0-9]+%$", p$comments)))
-  expect_true(any(grepl("^GLO Score [0-9,]+$", p$comments)))
+  expect_true(any(grepl("^GLO Score per codon [0-9]+\\.[0-9]{2}$", p$comments)))
 })
 
 test_that("tags, promoter and UTR features cover the right bases in the file", {

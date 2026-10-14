@@ -10,7 +10,7 @@
 #   GG      TRUE for the Golden Gate enzymes (BsaI, BsmBI, BbsI, SapI, ...)
 #   Common  TRUE for the enzymes most often avoided in a transgene; they are listed first in the
 #           app's enzyme menu (a Golden Gate enzyme is listed under Golden Gate instead)
-# The list is New England Biolabs' full enzyme catalogue (234 enzymes). To add or change an
+# The list is the enzymes REBASE records as sold by NEB (234 enzymes; see docs/DATA.md). To add or change an
 # enzyme, edit that file and run this script; the tests fail if the two disagree.
 #
 # Methylation (Dam/Dcm sensitivity) is deliberately not recorded: a synthesized transgene is not

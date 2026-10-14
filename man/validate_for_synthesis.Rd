@@ -11,11 +11,21 @@ validate_for_synthesis(dna_seq)
 }
 \value{
 A list containing:
-  \item{pass}{Logical; TRUE if all synthesis rules are satisfied.}
-  \item{warnings}{Character vector; specific violation messages if the sequence fails.}
+\item{pass}{Logical; TRUE if there is no issue at either level.}
+\item{high_complexity}{Logical; TRUE if a high-complexity criterion is met.}
+\item{standard_issues}{Character vector; messages about the standard guidelines.}
+\item{high_complexity_issues}{Character vector; messages about high-complexity criteria.}
+\item{warnings}{Character vector; all the messages (standard issues first), for display.}
 }
 \description{
-Evaluates a DNA sequence against standard commercial synthesis constraints
-(specifically mimicking Twist Bioscience guidelines). Checks for homopolymers,
-extreme global GC content, and extreme local GC content windows.
+Checks a DNA sequence against Twist Bioscience's published gene synthesis guidelines (read on 2026-10-14; see \code{docs/METHODS.md} for the
+pages). Twist scores the complexity of a design (Low, Medium or High) and decides itself; the result here separates two levels:
+\itemize{
+\item \strong{standard guidelines}: homopolymers of 14 bases or more; global GC content outside 25 to 75 percent; a 50-base window with more than
+80 percent GC (a softer warning than Twist's own limit of 90); a length below 300 or above 7,000 bases (and above 5,000, too long for gene
+fragments); a ccdB coding region (translated in all six frames, so a recoded copy is found too).
+\item \strong{high complexity}: any homopolymer longer than 30 bases; a 50-base window below 10 or above 90 percent GC; a direct repeat of more than
+200 bases. Such a design is not eligible for the Express service and is made as a Complex Gene, which takes longer.
+}
+Not checked: short tandem repeats longer than 100 bases, hairpin-forming repeats longer than 100 bases, and Twist's machine-learning complexity score.
 }

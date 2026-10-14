@@ -65,13 +65,12 @@ make_pirna_reference <- function(seqs) {
        odd = odd, unusable = setdiff(which(!enc$valid), odd))
 }
 
-# The full piRNA database, encoded once and kept for later calls. It is encoded again
-# only if the dataset itself has changed.
+# The set of piRNAs being screened against (by default the whole C. elegans database), encoded once and kept for later
+# calls. It is encoded again only if the set itself has changed (for example when a user selects other species).
 pirna_reference <- local({
   cache <- NULL
-  function() {
-    p <- WormTransgeneBuilder::pirna_sequences
-    if (is.null(cache) || !identical(cache$source, p)) cache <<- make_pirna_reference(p)
+  function(seqs = WormTransgeneBuilder::pirna_sequences) {
+    if (is.null(cache) || !identical(cache$source, seqs)) cache <<- make_pirna_reference(seqs)
     cache
   }
 })

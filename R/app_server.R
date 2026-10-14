@@ -95,7 +95,6 @@ ui_data_introns   <- safe_load_csv("Introns.csv")
 ui_data_5putrs    <- safe_load_csv("5pUTRs.csv")
 ui_data_3putrs    <- safe_load_csv("3pUTRs.csv")
 ui_data_promoters <- safe_load_csv("Promoters.csv")
-ui_data_pirnas    <- safe_load_csv("piRNA_Database.csv")
 ui_data_enzymes   <- safe_load_csv("Enzymes.csv")
 ui_data_tags      <- safe_load_csv("Tags.csv")
 
@@ -172,6 +171,16 @@ app_server <- function(input, output, session) {
       return()
     }
 
+    # Which species' piRNAs to avoid (the box is only shown when "Minimize piRNA homology" is ticked). The default is C. elegans
+    # with its type 2 piRNAs; the species databases are independent and are only combined when several are selected.
+    pirna_species <- input$pirnaSpecies
+    if (isTRUE(input$checkPirna) && length(pirna_species) == 0) {
+      shiny::showNotification("Please select at least one species whose piRNAs should be avoided.", type = "error")
+      return()
+    }
+    pirna_type2 <- if (is.null(input$pirnaType2)) TRUE else isTRUE(input$pirnaType2)
+    pirna_db <- select_pirna_database(if (length(pirna_species) == 0) "elegans" else pirna_species, include_type2 = pirna_type2)
+
     shinyjs::disable("actionSeq")
     shiny::showNotification("Optimizing Sequence... Please wait.", id = "job_loader", duration = NULL, type = "message")
 
@@ -221,6 +230,7 @@ app_server <- function(input, output, session) {
     }
 
     introns_to_pass <- NULL
+    intron_pool_to_pass <- NULL
     if (input$checkIntron) {
       if (input$intropt == "Synthetic") {
         local_synth <- safe_load_csv("Synthetic_Introns.csv")
@@ -228,6 +238,7 @@ app_server <- function(input, output, session) {
           n_req <- as.numeric(input$num_synth_introns)
           n_req <- min(n_req, nrow(local_synth))
           introns_to_pass <- sample(local_synth$Sequence, n_req, replace = FALSE)
+          intron_pool_to_pass <- gsub("[^ATGCatgc]", "", local_synth$Sequence)   # spare introns, used if a chosen one would create a site of a selected enzyme
         } else {
           shiny::showNotification("Could not find 'Synthetic_Introns.csv' or 'Sequence' column.", type = "warning")
         }
@@ -236,7 +247,7 @@ app_server <- function(input, output, session) {
         if (!is.null(local_introns) && !is.null(input$intropt)) {
           target_intron <- input$intropt
           if (target_intron == "1") target_intron <- "Fire_lab_introns"
-          if (target_intron == "2") target_intron <- "rps-0"
+          if (target_intron == "2") target_intron <- "rpsa-1"
           row_idx <- which(local_introns$Name == target_intron)
           if (length(row_idx) > 0) {
             introns_to_pass <- c(local_introns[row_idx, "Sequence_1"],
@@ -254,8 +265,8 @@ app_server <- function(input, output, session) {
       if (!is.null(introns_to_pass) && length(introns_to_pass) > 0) {
         dna_len <- if (is_prot) nchar(raw_seq) * 3 else nchar(raw_seq)
         avg_exon <- dna_len / (length(introns_to_pass) + 1)
-        if (avg_exon < 150) {
-          shiny::showNotification(paste0("Warning: Average distance between introns will be ~", round(avg_exon), " bp, which is shorter than the recommended 150 bp limit."), type = "warning", duration = 15)
+        if (avg_exon < 110) {
+          shiny::showNotification(paste0("Warning: Average distance between introns will be ~", round(avg_exon), " bp, which is well below the median C. elegans exon (123 bp, Spieth et al. 2014)."), type = "warning", duration = 15)
         }
       }
     }
@@ -289,7 +300,7 @@ app_server <- function(input, output, session) {
     spacing_choice <- "early"
     if (!is.null(input$intdistop)) spacing_choice <- if(input$intdistop == "2") "equidistant" else "early"
     force_frame <- if (!is.null(input$checkintframe)) input$checkintframe else TRUE
-    target_hamming <- if (!is.null(input$selectPiMM)) as.numeric(input$selectPiMM) else 3
+    target_hamming <- if (!is.null(input$selectPiMM)) as.numeric(input$selectPiMM) else 4
 
     tryCatch({
       opt_results <- with_user_notifications(with_local_seed(seed_for_method, optimize_transgene(
@@ -299,6 +310,7 @@ app_server <- function(input, output, session) {
         remove_pirnas = input$checkPirna,
         target_min_hamming = target_hamming,
         introns = introns_to_pass,
+        intron_pool = intron_pool_to_pass,
         spacing_type = spacing_choice,
         force_reading_frame = force_frame,
         add_consensus_start = input$checkfouras,
@@ -308,7 +320,8 @@ app_server <- function(input, output, session) {
         utr3_seq = utr3_to_pass,
         is_protein = is_prot,
         tag_n_seqs = tag_n_seqs,
-        tag_c_seqs = tag_c_seqs
+        tag_c_seqs = tag_c_seqs,
+        pirna_targets = pirna_db$Target_20mer
       )))
 
       final_seq <- opt_results$final_seq
@@ -317,20 +330,25 @@ app_server <- function(input, output, session) {
       cai_scorer_col <- if(opt_method_choice == "CAI1") "BringMansWeights" else "Ubiq"
       cai_orig <- if (!is_prot) calc_cai(raw_seq, usage_column = cai_scorer_col) else NA
       gc_orig <- if (!is_prot) calc_gc_content(raw_seq) else NA
-      glo_orig <- if (!is_prot) calc_glo_score(raw_seq) else NA
+      glo_orig <- if (!is_prot) calc_glo_per_codon(raw_seq) else NA
 
       cai_new  <- calc_cai(optimized_cds, usage_column = cai_scorer_col)
       gc_new  <- calc_gc_content(optimized_cds)
-      glo_new  <- calc_glo_score(optimized_cds)
+      glo_new  <- calc_glo_per_codon(optimized_cds)
 
       twist_ui <- NULL
       if (isTRUE(input$checkTwisty)) {
         twist_report <- validate_for_synthesis(final_seq)
         if (twist_report$pass) {
-          twist_ui <- shiny::div(shiny::p(shiny::strong("Status:"), " Sequence passes basic Twist synthesis guidelines."))
+          twist_ui <- shiny::div(shiny::p(shiny::strong("Status:"), " Sequence meets the Twist gene synthesis guidelines checked here."))
         } else {
-          warnings_html <- lapply(twist_report$warnings, function(w) shiny::tags$li(w))
-          twist_ui <- shiny::div(shiny::p(shiny::strong("Status:"), " Potential synthesis issues detected:"), shiny::tags$ul(warnings_html))
+          items <- function(x) shiny::tags$ul(lapply(x, function(w) shiny::tags$li(w)))
+          twist_ui <- shiny::div(
+            if (length(twist_report$standard_issues) > 0)
+              shiny::tagList(shiny::p(shiny::strong("Standard guidelines:"), " potential synthesis issues detected:"), items(twist_report$standard_issues)),
+            if (twist_report$high_complexity)
+              shiny::tagList(shiny::p(shiny::strong("High complexity:"), " not eligible for Twist's Express service; it would be made as a Complex Gene, which takes longer:"), items(twist_report$high_complexity_issues)),
+            shiny::p(style = "color: #7f8c8d; font-size: 0.85em;", "Twist decides itself; see the documentation for what is checked."))
         }
       }
 
@@ -373,9 +391,9 @@ app_server <- function(input, output, session) {
         }
       }
 
-      if (!is.null(introns_to_pass) && length(introns_to_pass) > 0) {
-        for (i in seq_along(introns_to_pass)) {
-          res <- add_matches(introns_to_pass[i], final_seq, "#f5cba7", "Intron", "intron")
+      if (length(opt_results$introns_used) > 0) {
+        for (i in seq_along(opt_results$introns_used)) {
+          res <- add_matches(opt_results$introns_used[i], final_seq, "#f5cba7", "Intron", "intron")
           opt_starts <- c(opt_starts, res$starts); opt_ends <- c(opt_ends, res$ends)
           opt_colors <- c(opt_colors, res$colors); opt_tooltips <- c(opt_tooltips, res$tooltips); opt_feats <- c(opt_feats, res$feats)
         }
@@ -415,13 +433,10 @@ app_server <- function(input, output, session) {
           fin_dists <- opt_results$final_pirna_dists
           problematic_idx <- which(init_dists < target_hamming)
 
-          if (!is.null(ui_data_pirnas) && length(problematic_idx) > 0) {
-            seqs_to_show <- WormTransgeneBuilder::pirna_sequences[problematic_idx]
-            pirna_df <- ui_data_pirnas[ui_data_pirnas$Target_20mer %in% seqs_to_show, c("Name", "Target_20mer", "Full_21mer", "Abundance", "Enrichment")]
-            match_idx <- match(pirna_df$Target_20mer, WormTransgeneBuilder::pirna_sequences)
-
-            orig_ham_num <- as.integer(init_dists[match_idx])
-            new_ham_num <- as.integer(fin_dists[match_idx])
+          if (length(problematic_idx) > 0) {
+            pirna_df <- pirna_db[problematic_idx, ]
+            orig_ham_num <- as.integer(init_dists[problematic_idx])
+            new_ham_num <- as.integer(fin_dists[problematic_idx])
 
             status_vec <- sapply(new_ham_num, function(val) {
               if (val >= target_hamming) "Safely Recoded" else "Unremovable"
@@ -445,8 +460,13 @@ app_server <- function(input, output, session) {
             pirna_df$Original_Hamming <- as.character(orig_ham_num)
             pirna_df$New_Hamming <- as.character(new_ham_num)
             pirna_df$Target_20mer <- NULL
-            pirna_df <- pirna_df[, c("Name", "Full_21mer", "Original_Hamming", "New_Hamming", "Abundance", "Enrichment", "Status")]
-            colnames(pirna_df) <- c("Name", "piRNA", "Hamming (original)", "Hamming (new)", "Abundance", "Enrichment", "Status")
+            columns <- c("Name", "Type", "Full_21mer", "Original_Hamming", "New_Hamming", "Abundance", "Enrichment", "Status")
+            labels <- c("Name", "Type", "piRNA", "Hamming (original)", "Hamming (new)", "Abundance", "Enrichment", "Status")
+            if (length(unique(pirna_db$Species)) > 1) {   # several species selected: say which species each match is from
+              columns <- c("Species", columns); labels <- c("Species", labels)
+            }
+            pirna_df <- pirna_df[, columns]
+            colnames(pirna_df) <- labels
 
             output$pirnaTable <- shiny::renderTable({ pirna_df }, striped = TRUE, hover = TRUE, width = "100%", align = 'l')
           } else {
@@ -475,14 +495,14 @@ app_server <- function(input, output, session) {
           style = "margin-bottom: 20px; font-size: 1.1em;",
           shiny::strong("Codon Adaptation Index: "), round(cai_new, 2), shiny::br(),
           shiny::strong("GC content: "), paste0(round(gc_new * 100), "%"), shiny::br(),
-          shiny::strong("GLO Score: "), format(round(glo_new), big.mark=",")
+          shiny::strong("GLO Score (per codon): "), format(round(glo_new, 2), nsmall = 2)
         )
 
         ori_stats <- shiny::div(
           style = "margin-bottom: 20px; font-size: 1.1em;",
           shiny::strong("Codon Adaptation Index: "), if(!is.na(cai_orig)) round(cai_orig, 2) else "N/A", shiny::br(),
           shiny::strong("GC content: "), if(!is.na(gc_orig)) paste0(round(gc_orig * 100), "%") else "N/A", shiny::br(),
-          shiny::strong("GLO Score: "), if(!is.na(glo_orig)) format(round(glo_orig), big.mark=",") else "N/A"
+          shiny::strong("GLO Score (per codon): "), if(!is.na(glo_orig)) format(round(glo_orig, 2), nsmall = 2) else "N/A"
         )
 
         shiny::div(
@@ -519,7 +539,11 @@ app_server <- function(input, output, session) {
       }
 
       param_log <- c(param_log, paste("Remove piRNA sites:", ifelse(input$checkPirna, "Yes", "No")))
-      if (input$checkPirna) param_log <- c(param_log, paste("Maximum number of mismatches to 20-mer piRNA binding region:", target_hamming))
+      if (input$checkPirna) {
+        param_log <- c(param_log, paste("Maximum number of mismatches to 20-mer piRNA binding region:", target_hamming))
+        param_log <- c(param_log, paste("piRNA species avoided:", paste(unique(pirna_db$Species), collapse = ", ")))
+        if ("C. elegans" %in% pirna_db$Species) param_log <- c(param_log, paste("Include C. elegans type 2 piRNAs:", ifelse(pirna_type2, "Yes", "No")))
+      }
       param_log <- c(param_log, paste("Remove RE sites:", ifelse(input$checkEnzySites && length(input$Oenzymes) > 0, "Yes", "No")))
       if (input$checkEnzySites && length(input$Oenzymes) > 0) param_log <- c(param_log, paste("Restriction sites removed:", paste(input$Oenzymes, collapse=", ")))
       param_log <- c(param_log, paste("Add introns:", ifelse(input$checkIntron, "Yes", "No")))
@@ -545,7 +569,7 @@ app_server <- function(input, output, session) {
           gb_lines <- export_genbank(
             locus_name = ifelse(input$nameinput == "", "Sequence", input$nameinput), sequence = final_seq,
             starts = opt_starts, ends = opt_ends, colors = opt_colors, tooltips = opt_tooltips, feat_types = opt_feats,
-            cai_score = round(cai_new, 2), gc_score = paste0(round(gc_new * 100), "%"), glo_score = format(round(glo_new), big.mark=","),
+            cai_score = round(cai_new, 2), gc_score = paste0(round(gc_new * 100), "%"), glo_score = format(round(glo_new, 2), nsmall = 2),
             input_seq = raw_seq, extracomments = param_log
           )
           writeLines(gb_lines, file)
@@ -557,7 +581,7 @@ app_server <- function(input, output, session) {
           gb_lines <- export_genbank(
             locus_name = ifelse(input$nameinput == "", "Sequence", input$nameinput), sequence = raw_seq,
             starts = ori_starts, ends = ori_ends, colors = ori_colors, tooltips = ori_tooltips, feat_types = ori_feats,
-            cai_score = round(cai_orig, 2), gc_score = paste0(round(gc_orig * 100), "%"), glo_score = format(round(glo_orig), big.mark=","),
+            cai_score = round(cai_orig, 2), gc_score = paste0(round(gc_orig * 100), "%"), glo_score = format(round(glo_orig, 2), nsmall = 2),
             extracomments = c("Original unmodified sequence")
           )
           writeLines(gb_lines, file)

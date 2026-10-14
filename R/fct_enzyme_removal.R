@@ -143,11 +143,13 @@ warn_unremoved_sites <- function(remaining) {
 #' @param score_column Character string; the graded codon-weight column in
 #'   `codon_freqs` (best codon = 1) used to score changes.
 #' @param max_fixes Integer; safety limit on the number of codon changes.
+#' @param change_score Optional function `(seq_vec, codon_index, new_codon)` giving the score of a change (higher is better); by
+#'   default the change in log codon weight. The "GLO" method uses the change in GLO score (`glo_change_gain()`).
 #' @return The sequence with removable sites removed. A warning is given if any
 #'   site could not be removed.
 #' @noRd
 remove_enzyme_sites_max_cai <- function(dna_seq, sites, score_column = "BringMansWeights",
-                                        max_fixes = 1000) {
+                                        max_fixes = 1000, change_score = NULL) {
   cf <- WormTransgeneBuilder::codon_freqs
   codons_up <- toupper(cf$Codon)
   codon_to_aa <- setNames(cf$Amino, codons_up)
@@ -173,7 +175,7 @@ remove_enzyme_sites_max_cai <- function(dna_seq, sites, score_column = "BringMan
 
     best <- NULL  # list(score, codon_index, new_codon)
     for (ch in find_site_breaking_changes(seq_vec, first_codon, last_codon, sites, codon_to_aa, aa_to_syn)) {
-      score <- unname(log_w(ch$new_codon) - log_w(ch$old_codon))
+      score <- if (is.null(change_score)) unname(log_w(ch$new_codon) - log_w(ch$old_codon)) else change_score(seq_vec, ch$codon_index, ch$new_codon)
       better <- is.null(best) || score > best$score + 1e-12
       if (better) best <- list(score = score, codon_index = ch$codon_index, new_codon = ch$new_codon)
     }
@@ -191,6 +193,31 @@ remove_enzyme_sites_max_cai <- function(dna_seq, sites, score_column = "BringMan
   paste(seq_vec, collapse = "")
 }
 
+#' Recognition Sites and Their Reverse Complements
+#'
+#' @param enzymes Character vector of enzyme names (rows of `enzy`).
+#' @param warn Logical; warn about names that are not in the enzyme table.
+#' @return A character vector of unique sites (IUPAC codes allowed): each enzyme's site and its reverse complement.
+#' @noRd
+enzyme_search_sites <- function(enzymes, warn = TRUE) {
+  unknown <- setdiff(enzymes, rownames(WormTransgeneBuilder::enzy))
+  if (warn && length(unknown) > 0) {
+    warning("Ignoring restriction enzyme(s) that are not in the enzyme table: ",
+            paste(unknown, collapse = ", "), ".", call. = FALSE)
+  }
+  sites <- c()
+  for (enz in enzymes) {
+    site <- toupper(WormTransgeneBuilder::enzy[enz, "Site"])
+    if (!is.na(site)) {
+      if (!grepl("^[ACGTRYSWKMBDHVN]+$", site)) {
+        stop("Recognition site for ", enz, " contains characters that are not valid IUPAC DNA codes: ", site)
+      }
+      sites <- c(sites, site, reverse_complement(site))
+    }
+  }
+  unique(sites)
+}
+
 #' Remove Restriction Enzyme Sites
 #'
 #' Iteratively scans the DNA sequence for specified restriction enzyme recognition
@@ -202,7 +229,7 @@ remove_enzyme_sites_max_cai <- function(dna_seq, sites, score_column = "BringMan
 #' @param enzymes_to_remove Character vector; names of the restriction enzymes to screen for (e.g., "BsaI").
 #' @param usage_column_name Character string; the column name in the internal codon table used to weight synonymous mutations.
 #'   The special value `"CAI1"` (the "High expression" method) switches to a deterministic search that makes
-#'   the change with the smallest loss of Codon Adaptation Index.
+#'   the change with the smallest loss of Codon Adaptation Index; `"GLO"` does the same with the smallest loss of GLO score.
 #' @return A character string of the sequence with targeted restriction sites removed.
 #' @export
 remove_enzyme_sites <- function(dna_seq, enzymes_to_remove, usage_column_name) {
@@ -210,31 +237,17 @@ remove_enzyme_sites <- function(dna_seq, enzymes_to_remove, usage_column_name) {
 
   if (length(enzymes_to_remove) == 0 || is.null(dna_seq) || dna_seq == "") return(dna_seq)
 
-  unknown <- setdiff(enzymes_to_remove, rownames(WormTransgeneBuilder::enzy))
-  if (length(unknown) > 0) {
-    warning("Ignoring restriction enzyme(s) that are not in the enzyme table: ",
-            paste(unknown, collapse = ", "), ".", call. = FALSE)
-  }
-
-  sites_to_check <- c()
-  for (enz in enzymes_to_remove) {
-    site <- toupper(WormTransgeneBuilder::enzy[enz, "Site"])
-    if (!is.na(site)) {
-      if (!grepl("^[ACGTRYSWKMBDHVN]+$", site)) {
-        stop("Recognition site for ", enz, " contains characters that are not valid IUPAC DNA codes: ", site)
-      }
-      sites_to_check <- c(sites_to_check, site)
-      rc_site <- reverse_complement(site)
-      sites_to_check <- c(sites_to_check, rc_site)
-    }
-  }
-  sites_to_check <- unique(sites_to_check)
+  sites_to_check <- enzyme_search_sites(enzymes_to_remove)
 
   # "High expression" (CAI1) recodes to the single best codon, so a random
   # weighted draw is impossible (all other weights are 0). Use the deterministic,
   # smallest-CAI-loss search instead.
   if (identical(usage_column_name, "CAI1") && length(sites_to_check) > 0) {
     return(remove_enzyme_sites_max_cai(toupper(dna_seq), sites_to_check, "BringMansWeights"))
+  }
+  # "GLO": the same search, but the least harmful change is the one that costs the least GLO score.
+  if (identical(usage_column_name, "GLO") && length(sites_to_check) > 0) {
+    return(remove_enzyme_sites_max_cai(toupper(dna_seq), sites_to_check, "Ubiq", change_score = glo_change_gain))
   }
 
   remove_enzyme_sites_weighted(toupper(dna_seq), sites_to_check, usage_column_name)

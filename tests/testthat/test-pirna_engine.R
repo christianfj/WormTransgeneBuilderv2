@@ -204,17 +204,20 @@ test_that("the shields give exactly the same results as before on the benchmark 
   skip_if(!file.exists(helpers), "benchmark helpers are not available")
   source(helpers, local = TRUE)
   g <- make_benchmark_cds(600); bg <- make_best_codon_benchmark_cds(600)
+  # The reference values were captured against the 17,849 piRNAs of the database before the 2026-10 rebuild, so the shields
+  # are run against that same set here (it is kept in dev/benchmarks); this still checks that the algorithms give the same results.
+  old <- benchmark_pirna_targets()
 
-  set.seed(1); x1 <- remove_pirna_sites(g, "Ubiq", 3)
+  set.seed(1); x1 <- remove_pirna_sites(g, "Ubiq", 3, pirnas = old)
   expect_identical(rlang::hash(x1$sequence), "98327b40119c141c8e8845302e8b1314")
   expect_identical(rlang::hash(x1), "28b74990a261263e45070b60a71acbca")
-  set.seed(2); x2 <- remove_pirna_sites(g, "Ubiq", 3)
+  set.seed(2); x2 <- remove_pirna_sites(g, "Ubiq", 3, pirnas = old)
   expect_identical(rlang::hash(x2$sequence), "3fe1aa7885a419f2359881c8816b8a77")
   expect_identical(rlang::hash(x2), "550ef93f774bf283e1d0fa4c4d9f9f46")
-  xc <- remove_pirna_sites(bg, "CAI1", 3)
+  xc <- remove_pirna_sites(bg, "CAI1", 3, pirnas = old)
   expect_identical(rlang::hash(xc$sequence), "1c5cc88a0b9a3285f8477b1fde862a3c")
   expect_identical(rlang::hash(xc), "904c4ab56f91cbddd05b3b7a803bf0af")
-  expect_identical(rlang::hash(get_pirna_distances(g)), "049a8815734d5e492c7977e47daeaac7")
+  expect_identical(rlang::hash(get_pirna_distances(g, old)), "049a8815734d5e492c7977e47daeaac7")
 })
 
 test_that("the shield reports distances that match the original method", {

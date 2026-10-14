@@ -14,3 +14,9 @@
 
 # Docker deployment tarballs
 *.tar
+
+# Raw inputs for the piRNA database rebuild (large, local only)
+data-raw/inputs/
+
+# Third-party Fire lab kit sequences from Addgene (3 MB, local only; see docs/FIRE_LAB_SEQUENCES.md for how to obtain and check it)
+data-raw/fire_lab_vectors/

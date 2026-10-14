@@ -4,10 +4,13 @@
 \alias{get_pirna_distances}
 \title{Get Exact Hamming Distances for all piRNAs}
 \usage{
-get_pirna_distances(dna_seq)
+get_pirna_distances(dna_seq, pirnas = WormTransgeneBuilder::pirna_sequences)
 }
 \arguments{
 \item{dna_seq}{Character string; the input DNA sequence.}
+
+\item{pirnas}{Character vector of 20-base piRNA targets to compare with; by default the whole \emph{C. elegans} database
+(\code{pirna_sequences}). The result has one distance per element, in the same order.}
 }
 \value{
 A numeric vector of the minimum Hamming distances for each known piRNA.
@@ -15,5 +18,7 @@ A numeric vector of the minimum Hamming distances for each known piRNA.
 \description{
 Slices the input sequence into 20-mer sliding windows and computes the
 minimum Hamming distance between any 20-mer in the sequence and the
-established C. elegans piRNA database.
+established C. elegans piRNA database. The distances are exact; they are computed
+with whole-number arithmetic on a 2-bit encoding of the bases (see
+\code{scan_kmers_against_pirnas()}), which is much faster than comparing characters.
 }

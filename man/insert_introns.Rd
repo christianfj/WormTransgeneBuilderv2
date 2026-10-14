@@ -4,7 +4,14 @@
 \alias{insert_introns}
 \title{Biologically-Aware Intron Inserter}
 \usage{
-insert_introns(cds_seq, introns, spacing_type = "early")
+insert_introns(
+  cds_seq,
+  introns,
+  spacing_type = "early",
+  in_frame = TRUE,
+  avoid_sites = NULL,
+  pool = NULL
+)
 }
 \arguments{
 \item{cds_seq}{Character string; the coding DNA sequence to modify.}
@@ -12,12 +19,32 @@ insert_introns(cds_seq, introns, spacing_type = "early")
 \item{introns}{Character vector; the intron sequences to insert.}
 
 \item{spacing_type}{Character string; either "early" (front-loaded) or "equidistant".}
+
+\item{in_frame}{Logical; if TRUE (the default) an intron is always inserted between two codons
+(phase 0). If FALSE it may be inserted after any base, so it can fall inside a codon.}
+
+\item{avoid_sites}{Optional character vector of recognition sites (IUPAC codes allowed, both strands as separate
+entries, for example from \code{enzyme_search_sites()}) that the inserted introns must not create. The stretch checked
+for each intron is the intron together with the exon bases on either side, so a site that is only formed where
+the intron joins the exon is found too.}
+
+\item{pool}{Optional character vector of spare introns. When an intron would create one of \code{avoid_sites}, spare
+introns are tried in random order (never one already used) until one does not. If none works, the intron is kept
+and \code{unresolved} says so.}
 }
 \value{
-A list containing the modified sequence (`seq`) and a numeric vector
-  of the insertion base pairs (`insertions`).
+A list containing the modified sequence (\code{seq}), a numeric vector
+of the insertion base pairs (\code{insertions}), the number of bases of \code{cds_seq} before each intron, the introns
+actually inserted (\code{introns}, which differ from the input only where one was swapped for one from \code{pool}) and
+\code{unresolved}, the positions (in \code{introns}) of introns that still create a site in \code{avoid_sites}.
 }
 \description{
 Inserts a vector of intron sequences into a coding sequence (CDS) while
 attempting to place them at optimal boundaries (e.g., matching the AAG/CAG consensus).
+}
+\details{
+The best place for each intron is looked for within 15 codons (45 bases) either side of
+its target. A place scores 3 if the three bases before the intron are AAG, 2 if they are CAG and 1
+if they end in AG; the highest score wins and the place nearest the target wins a tie. With
+\code{in_frame = TRUE} the three bases before the intron are one codon.
 }

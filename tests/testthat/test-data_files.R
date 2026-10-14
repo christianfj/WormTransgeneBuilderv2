@@ -8,7 +8,7 @@ extdata_csv <- function(name) {
            stringsAsFactors = FALSE)
 }
 
-usage_columns <- c("Ubiq", "CAI1", "BringMansWeights", "Chance", "aCDS", "HighRCSU")
+usage_columns <- c("Ubiq", "CAI1", "BringMansWeights", "Chance")
 
 # ---- 1. Codon table --------------------------------------------------------
 
@@ -218,4 +218,74 @@ test_that("every piRNA target is the reverse complement of the 21-base piRNA wit
   expect_identical(d$Target_20mer, reverse_complement(substring(d$Full_21mer, 2, 21)))
   expect_identical(as.character(WormTransgeneBuilder::pirna_sequences), d$Target_20mer)
   expect_gt(mean(substr(d$Full_21mer, 1, 1) == "T"), 0.95)
+})
+
+# ---- the codon table: what each column is (see docs/DATA.md; dev/verify_codon_table.R recomputes them) ----------------
+
+per_amino <- function(values, amino, f) vapply(split(values, amino), f, 0)
+
+test_that("codon table: the frequency columns sum to 1 for every amino acid, and Chance gives equal weight to synonymous codons", {
+  cf <- WormTransgeneBuilder::codon_freqs
+  for (col in c("Ubiq", "Chance")) expect_equal(unname(per_amino(cf[[col]], cf$Amino, sum)), rep(1, 21), info = col)
+  expect_equal(cf$Chance, 1 / ave(rep(1, nrow(cf)), cf$Amino, FUN = length))
+})
+
+test_that("codon table: CAI1 and BringMansWeights agree on the best codon of every amino acid", {
+  cf <- WormTransgeneBuilder::codon_freqs
+  aa <- cf$Amino != "X"
+  by_amino <- split(cf[aa, ], cf$Amino[aa])
+  expect_length(by_amino, 20)
+  for (a in names(by_amino)) {
+    d <- by_amino[[a]]
+    expect_equal(sum(d$CAI1 == 1), 1, info = a)                                   # exactly one best codon
+    expect_equal(max(d$BringMansWeights), 1, info = a)                            # whose weight is 1
+    expect_identical(as.character(d$Codon[d$CAI1 == 1]), as.character(d$Codon[d$BringMansWeights == 1]), info = a)
+  }
+  expect_true(all(cf$CAI1[!aa] == 1))              # all three stop codons are "best"
+  expect_true(all(cf$BringMansWeights[!aa] == 0))  # and carry no weight in the CAI
+})
+
+test_that("the codon table has exactly the columns the app uses", {
+  expect_identical(names(WormTransgeneBuilder::codon_freqs), c("Codon", "Amino", "Ubiq", "Chance", "CAI1", "BringMansWeights"))
+  expect_identical(names(extdata_csv("Codon_frequencies.csv")), c("Codon", "Amino", "Ubiq", "Chance", "CAI1", "BringMansWeights"))
+})
+
+test_that("the weights returned by the Codon Adapter web tool equal the app's codon weights (recorded 2026-10-07)", {
+  # data-raw/codon_adapter/query_codon_adapter.R sends one sequence containing every codon to the tool and saves the weights it returns.
+  f <- testthat::test_path("..", "..", "data-raw", "codon_adapter", "codon_adapter_weights.csv")
+  skip_if(!file.exists(f), "the recorded Codon Adapter output is not in this copy")
+  tool <- utils::read.csv(f, stringsAsFactors = FALSE)
+  cf <- WormTransgeneBuilder::codon_freqs
+  m <- merge(tool, data.frame(codon = toupper(cf$Codon), weight_app = cf$BringMansWeights, best_app = cf$CAI1, amino = cf$Amino), by = "codon")
+  expect_equal(nrow(m), 64)
+  expect_equal(m$weight, m$weight_app, tolerance = 5e-4)                        # all 61 sense codons and the stops (weight 0)
+  sense <- m[m$amino != "X", ]
+  expect_identical(sense$best_app == 1, sense$weight == 1)                        # the same best codon of every amino acid
+  expect_identical(sense$optimized[sense$weight == 1], sense$codon[sense$weight == 1])
+})
+
+test_that("the synthetic intron pool follows its design (dev/make_synthetic_introns.R)", {
+  s <- safe_load_csv("Synthetic_Introns.csv")$Sequence
+  expect_gte(length(s), 1000)
+  expect_true(all(nchar(s) %in% 44:52))
+  expect_match(s, "^gtaagttt")
+  expect_match(s, "ttttcag$")
+  expect_false(any(grepl("gtaag", substring(s, 2))))                      # no second 5' splice site
+  expect_false(any(grepl("tcag", substr(s, 1, nchar(s) - 4))))            # no earlier 3' splice site
+  enz <- extdata_csv("Enzymes.csv")
+  sites <- enzyme_search_sites(enz$Enzyme[enz$Common | enz$GG])
+  has_site <- vapply(s, function(x) any(vapply(sites, function(z) nrow(find_enzyme_site_ranges(toupper(x), z)) > 0, TRUE)), TRUE)
+  expect_false(any(has_site))                                              # none has a site of a common or Golden Gate enzyme
+})
+
+test_that("the Waldo et al. linkers encode GSAGSAAGSGEF (12 amino acids) and (GGGS)4 (16 amino acids), with no stop codon", {
+  tags <- extdata_csv("Tags.csv")
+  twelve <- toupper(trimws(tags$Sequence[grepl("12 AA", tags$Name)]))
+  sixteen <- toupper(trimws(tags$Sequence[grepl("16 AA", tags$Name)]))
+  expect_length(twelve, 1); expect_length(sixteen, 1)
+  expect_identical(protein_of(twelve), "GSAGSAAGSGEF")
+  expect_identical(protein_of(sixteen), strrep("GGGS", 4))
+  expect_false(any(grepl("15 AA", tags$Name)))
+  expect_false(twelve == sixteen)
+  expect_equal(nchar(sixteen), 48)
 })

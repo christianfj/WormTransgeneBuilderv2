@@ -305,55 +305,22 @@ test_that("no windows gives no scores", {
   expect_identical(glo_window_scores(0:3, integer(0)), numeric(0))
 })
 
-# ---- calc_glo_score and optimize_glo give the same answers as before ------------------------------
+# ---- calc_glo_score gives the same answers as before ------------------------------------------------
 # Reference values produced by the previous implementation (binary search over the named
-# dictionary), captured before it was replaced.
+# dictionary), captured before it was replaced. (optimize_glo() was replaced on 2026-10-07 by a port of the original
+# algorithm, so its old outputs are no longer references; see test-glo_optimization.R.)
 
 reference_glo <- r"(score|cds|0|1988.3799999999999
-opt|cds|1|ATGGCTAAAGGCCTCTCGGAGCCAACTGTCAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTCCCCAACTTCCTTGGACTTTGCTGGAAAGCCGAAGAGTGTTAA
-opt|cds|2|ATGGCCAAGGGACTCTCCGAACCCACCGTTAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTTCCAAATTTTCTGGGTCTCTGCTGGAAAGCCGAAGAGTGTTAA
-opt|cds|3|ATGGCAAAGGGATTATCTGAACCGACCGTTAATCAAATCTACTGGAGAAAAGACGGAGAAGCATTTCCAAATTTTCTGGGCCTCTGTTGGAAGGCCGAAGAATGCTGA
 score|lower|0|1988.3799999999999
-opt|lower|1|ATGGCTAAAGGCCTCTCGGAGCCAACTGTCAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTCCCCAACTTCCTTGGACTTTGCTGGAAAGCCGAAGAGTGTTAA
-opt|lower|2|ATGGCCAAGGGACTCTCCGAACCCACCGTTAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTTCCAAATTTTCTGGGTCTCTGCTGGAAAGCCGAAGAGTGTTAA
-opt|lower|3|ATGGCAAAGGGATTATCTGAACCGACCGTTAATCAAATCTACTGGAGAAAAGACGGAGAAGCATTTCCAAATTTTCTGGGCCTCTGTTGGAAGGCCGAAGAATGCTGA
 score|withN|0|1840.28
-opt|withN|1|ATGGCTAAAGGCCTCTCGGAACCCACCGTTAATCAAATCTACTGGNNNAAAGACGGAGAAGCATTTCCAAATTTTTTGGGACTATGCTGGAAAGCCGAAGAGTGTTAA
-opt|withN|2|ATGGCGAAGGGTTTGTCTGAACCCACCGTTAATCAAATCTACTGGNNNAAAGATGGTGAAGCTTTTCCAAATTTTCTAGGTCTCTGCTGGAAAGCCGAAGAGTGTTAA
-opt|withN|3|ATGGCTAAAGGATTATCTGAACCGACCGTTAATCAAATCTACTGGNNNAAAGACGGAGAAGCATTTCCAAATTTTCTGGGCCTCTGTTGGAAGGCCGAAGAATGCTGA
 score|odd_len|0|1988.3799999999999
-opt|odd_len|1|ATGGCTAAAGGCCTCTCGGAGCCAACTGTCAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTCCCCAACTTCCTTGGACTTTGCTGGAAAGCCGAAGAGTGTTAAAC
-opt|odd_len|2|ATGGCCAAGGGACTCTCCGAACCCACCGTTAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTTCCAAATTTTCTGGGTCTCTGCTGGAAAGCCGAAGAGTGTTAAAC
-opt|odd_len|3|ATGGCAAAGGGATTATCTGAACCGACCGTTAATCAAATCTACTGGAGAAAAGACGGAGAAGCATTTCCAAATTTTCTGGGCCTCTGTTGGAAGGCCGAAGAATGCTGAAC
 score|odd_len2|0|1988.3799999999999
-opt|odd_len2|1|ATGGCTAAAGGCCTCTCGGAGCCAACTGTCAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTCCCCAACTTCCTTGGACTTTGCTGGAAAGCCGAAGAGTGTTAAA
-opt|odd_len2|2|ATGGCCAAGGGACTCTCCGAACCCACCGTTAATCAAATCTACTGGCGGAAAGACGGAGAAGCATTTCCAAATTTTCTGGGTCTCTGCTGGAAAGCCGAAGAGTGTTAAA
-opt|odd_len2|3|ATGGCAAAGGGATTATCTGAACCGACCGTTAATCAAATCTACTGGAGAAAAGACGGAGAAGCATTTCCAAATTTTCTGGGCCTCTGTTGGAAGGCCGAAGAATGCTGAA
 score|spaced|0|1988.3799999999999
-opt|spaced|1|ATGGCTAAAGGCCTTTCTGAACCCACTGTA AATCAAATCTTCTCGCATAAAGATGGTGATCCTTCTCCAAGTTCTCTGGAACCCTGTTGGAGAGCCGAAGAATGCTTA
-opt|spaced|2|ATGGCTAAAGGATTATCTGAACCGACTGTT AATCCAATCTTCTTGCGTAAAGATGGTGATCATTTTCCAAGTTTTCTGGAACTCTCTTGGAATCGAGAAGAATGCTGA
-opt|spaced|3|ATGGCAAAGGGCCTCTCGGAGCCAACTGTC AATCAAATCTTCTCGCTTAAAGATGGTGATCATTTTCCAAGTTTTCGGGAACCCTGTTGGAGAGCCGAAGAATGCTTA
 score|gene300|0|2089.4400000000001
-opt|gene300|1|c3c99382ca3397e93aeda50a24856c53
-opt|gene300|2|bdc89d690c9c61de0e667c73354cd3bd
-opt|gene300|3|36923b632fbeb6e056e6c12e4d60b62d
 score|gene3000|0|59509.669999999976
-opt|gene3000|1|47083201c73ba061c46f71c3c72b73c3
-opt|gene3000|2|ad8452252066d70d5e7d7b21cfdb60b2
-opt|gene3000|3|4d444481189e3bf89d52d7735e53b4d7
 score|short12|0|0
-opt|short12|1|ATGGCTAAAGGT
-opt|short12|2|ATGGCTAAAGGT
-opt|short12|3|ATGGCTAAAGGT
 score|short9|0|0
-opt|short9|1|ATGGCTAAA
-opt|short9|2|ATGGCTAAA
-opt|short9|3|ATGGCTAAA
-score|exact4|0|0
-opt|exact4|1|ATGGCTAAAGGTTAA
-opt|exact4|2|ATGGCTAAAGGTTAA
-opt|exact4|3|ATGGCTAAAGGTTAA
-score_of_opt|gene3000|1|325715.54999999993)"
+score|exact4|0|0)"
 
 glo_reference_inputs <- function() {
   cds <- glo_cds()
@@ -373,27 +340,34 @@ glo_reference_inputs <- function() {
   inputs
 }
 
-test_that("GLO scores and optimized sequences are exactly what the previous implementation gave", {
+test_that("GLO scores are exactly what the previous implementation gave", {
   inputs <- glo_reference_inputs()
   ref <- strsplit(strsplit(reference_glo, "\n")[[1]], "|", fixed = TRUE)
   checked <- 0
   for (r in ref) {
-    kind <- r[1]; id <- r[2]; seed <- as.integer(r[3]); value <- r[4]
+    kind <- r[1]; id <- r[2]; value <- r[4]
     if (!id %in% names(inputs)) next  # the large benchmark genes need dev/benchmarks
-    x <- inputs[[id]]
-    if (kind == "score") {
-      expect_identical(sprintf("%.17g", calc_glo_score(x)), value, info = paste(kind, id))
-    } else if (kind == "opt") {
-      set.seed(seed)
-      out <- optimize_glo(x)
-      expect_identical(if (nchar(out) > 200) rlang::hash(out) else out, value, info = paste(kind, id, "seed", seed))
-    } else if (kind == "score_of_opt") {
-      set.seed(seed)
-      expect_identical(sprintf("%.17g", calc_glo_score(optimize_glo(x))), value, info = paste(kind, id))
-    }
+    expect_identical(sprintf("%.17g", calc_glo_score(inputs[[id]])), value, info = paste(kind, id))
     checked <- checked + 1
   }
-  expect_gt(checked, 35)
+  expect_gt(checked, 8)
+})
+
+test_that("optimize_glo copes with every kind of input in the reference set", {
+  inputs <- glo_reference_inputs()
+  for (id in names(inputs)) {
+    x <- inputs[[id]]
+    set.seed(1)
+    out <- optimize_glo(x)
+    if (nchar(gsub("[^A-Za-z]", "", x)) %/% 3 < 4 || nchar(x) %/% 3 < 4) { expect_identical(out, x, info = id); next }
+    expect_identical(nchar(out), nchar(x), info = id)
+    codons_in <- substring(toupper(x), seq(1, nchar(x) - 2, 3), seq(3, nchar(x), 3))
+    codons_out <- substring(out, seq(1, nchar(out) - 2, 3), seq(3, nchar(out), 3))
+    odd <- !grepl("^[ACGT]{3}$", codons_in)
+    expect_identical(codons_out[odd], codons_in[odd], info = id)             # codons that are not plain A/C/G/T are untouched
+    expect_identical(protein_of(gsub("[^ACGT]", "A", out)), protein_of(gsub("[^ACGT]", "A", toupper(x))), info = id)
+    expect_true(calc_glo_score(out) >= calc_glo_score(x), info = id)
+  }
 })
 
 test_that("calc_glo_score adds the window scores in order, as it always did", {

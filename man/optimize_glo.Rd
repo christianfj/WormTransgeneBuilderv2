@@ -4,24 +4,62 @@
 \alias{optimize_glo}
 \title{Germline Optimize (GLO) a DNA Sequence}
 \usage{
-optimize_glo(dna_seq)
+optimize_glo(
+  dna_seq,
+  method = c("exact", "heuristic"),
+  rounds = 10L,
+  diversity = 0,
+  avoid_sites = NULL
+)
 }
 \arguments{
 \item{dna_seq}{Character string; the input DNA sequence to optimize.}
+
+\item{method}{\code{"exact"} (default) or \code{"heuristic"}, see above.}
+
+\item{rounds}{Integer; the number of improvement rounds of the heuristic (the original uses 10). Ignored by the exact method.}
+
+\item{diversity}{Numeric; size of the random jitter added to the CAI tie-break of the exact method (the default 0 is deterministic: the
+highest-CAI coding among the best-scoring ones). It is on the scale of the natural logarithm of the codon usage weights and never changes the GLO score.}
+
+\item{avoid_sites}{Optional character vector of DNA recognition sites (IUPAC codes allowed, both strands as separate entries, for example from
+\code{enzyme_search_sites()}). The exact method then finds the best coding \strong{that contains none of them}: a site of up to 10 bases always lies inside
+one window of four codons, and any such window containing a site is ruled out (with a penalty so large that it is only accepted when no
+alternative exists). Longer sites, and sites that cannot be avoided, are left for the later restriction-site step. Ignored by the heuristic.}
 }
 \value{
-A character string containing the GLO-optimized DNA sequence.
+A character string containing the GLO-optimized DNA sequence (upper case).
 }
 \description{
-Implementation of GLO algorithm developed by Daniel Dickinson (https://pubmed.ncbi.nlm.nih.gov/30109984/).
+The GLO (GermLine Optimized) method of Daniel Dickinson, first described and used in Fielmich et al. (2018) eLife 7:e38198
+(https://doi.org/10.7554/eLife.38198; PubMed 30109984); the original Perl code is at https://github.com/dannyhmg/germline.
+The score of a sequence is the sum of the score of every 12-base window that starts at a codon boundary (see \code{glo_window_scores()});
+the score of a 12-mer reflects how it is used in native germline-expressed genes. The amino-acid sequence never changes.
 }
 \details{
-Employs a greedy, localized perturbation algorithm to optimize a coding sequence
-for germline expression based on a massive 12-mer fitness dictionary. To achieve
-high performance, this algorithm utilizes a base-R implementation of Binary Search
-against a pre-sorted dictionary, reducing lookup complexity from O(N) to O(log N).
+Two methods are available.
 
-Furthermore, when evaluating a codon mutation, it does not recalculate the fitness
-of the entire gene. It maps and recalculates only the 4 overlapping 12-mer windows
-directly impacted by the substitution, radically improving iteration speed.
+\strong{\code{"exact"} (the default)} finds the coding with the highest possible score. The score is a sum of terms that each involve four
+consecutive codons, so the best coding can be found exactly by dynamic programming: go along the sequence and, for every choice of the last
+three codons, keep the best score reached so far, then trace back. This takes a fraction of a second even for 20 kb. Because 82\% of the 12-mers
+score zero, very many different codings share the best score; they are told apart by a second criterion that can never override the
+score: among the best-scoring codings, the one with the highest Codon Adaptation Index (computed with the \code{Ubiq} codon table, as the app reports it) wins.
+(The CAI is the geometric mean of the codon weights, so maximizing the sum of the log weights is maximizing the CAI.) Optionally
+a small random jitter (\code{diversity}) lets repeated runs differ a little among near-equal choices.
+
+\strong{\code{"heuristic"}} is a port of the original algorithm (\code{OptimizerTools::optimize()}), which works with whole four-codon words:
+\enumerate{
+\item every synonymous coding of each group of four amino acids is scored;
+\item a first sequence is assembled by placing the highest-scoring words first, then the best that fit;
+\item it is improved by taking positions in random order, scoring every coding word there in the context of the neighbouring codons
+(own window counted fully, the six overlapping windows 0.75, 0.5 and 0.25 on each side) and keeping the best word if the score of the
+whole sequence rises;
+\item this is done in \code{rounds} (10) rounds from the same first sequence; the best result is kept.
+}
+It differs from the original only in its stopping rule: a position is revisited only when a neighbouring codon has changed, so the search
+stops when no position can be improved. It reaches the scores of the unchanged original code (\code{docs/GLO_VERIFICATION.md}) and falls 0.1 to 2\%
+short of the exact optimum.
+
+Codons that cannot be recoded stay as they are: stop codons, and anything that is not a codon of A, C, G and T. A sequence of
+fewer than four codons is returned unchanged. Bases after the last complete codon are kept.
 }

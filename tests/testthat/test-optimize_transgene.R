@@ -315,7 +315,7 @@ test_that("in the app, High expression + RBS is repeatable (a fixed seed is used
       session$setInputs(
         intypeinput = 1, nameinput = "t", seqDNA = cds, seqPROT = "", selectCAI = "7",
         checkEnzySites = FALSE, Oenzymes = NULL, checkPirna = FALSE, selectPiMM = 3, checkTags = FALSE,
-        checkIntron = FALSE, intropt = "rps-0", num_synth_introns = 1, checkUTRs = FALSE,
+        checkIntron = FALSE, intropt = "rpsa-1", num_synth_introns = 1, checkUTRs = FALSE,
         checkPromoters = FALSE, checkboxRibo = TRUE, checkfouras = FALSE, checkTwisty = FALSE,
         checkintframe = TRUE, intdistop = "1")
       session$setInputs(actionSeq = 1)

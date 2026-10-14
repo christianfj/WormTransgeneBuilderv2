@@ -1,0 +1,8 @@
+run,species_strain,library,reads_total,reads_with_adapter,reads_18_28nt,unique_sequences,pct_21nt,pct_22nt,pct_5pT_among_21nt,pct_5pG_among_21nt
+SRR585535,C. elegans N2,adult hermaphrodite (control),34630930,34564722,33543916,7572684,19.9,43.0,31.3,51.8
+SRR585541,C. remanei PB4641,"young adult, males+females",26707809,26664166,25982882,7073135,24.6,38.9,59.7,29.4
+SRR585542,C. remanei PB4641,early embryo,22156258,22104103,21139277,5416585,20.2,42.7,41.3,40.2
+SRR585543,C. remanei PB4641,"young adult, male",17404204,17360293,11768136,2394695,16.9,24.6,31.6,34.2
+SRR585544,C. brenneri PB2801,"young adult, males+females",24259549,24220965,23607143,7317567,31.6,37.7,69.5,19.9
+SRR585545,C. brenneri PB2801,early embryo,21225328,21169238,20729506,5834004,20.1,45.8,39.5,42.1
+SRR585546,C. brenneri PB2801,"young adult, male",16737734,16696508,13917088,3555278,23.6,30.8,53.9,26.2

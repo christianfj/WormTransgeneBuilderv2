@@ -11,6 +11,7 @@ optimize_transgene(
   remove_pirnas = TRUE,
   target_min_hamming = 2,
   introns = NULL,
+  intron_pool = NULL,
   spacing_type = "early",
   force_reading_frame = TRUE,
   add_consensus_start = FALSE,
@@ -20,7 +21,8 @@ optimize_transgene(
   utr3_seq = NULL,
   is_protein = FALSE,
   tag_n_seqs = NULL,
-  tag_c_seqs = NULL
+  tag_c_seqs = NULL,
+  pirna_targets = WormTransgeneBuilder::pirna_sequences
 )
 }
 \arguments{
@@ -36,9 +38,14 @@ optimize_transgene(
 
 \item{introns}{Character vector; sequence strings for intron insertion.}
 
+\item{intron_pool}{Optional character vector of spare introns (the synthetic intron list). With \code{enzymes}, an intron
+that would create a recognition site of a requested enzyme (inside it or where it joins the exon) is swapped for a
+spare one that does not. Introns that cannot be replaced produce a warning (see \code{insert_introns()}).}
+
 \item{spacing_type}{Character string; intron distribution logic ("early" or "equidistant").}
 
-\item{force_reading_frame}{Logical; whether introns are forced outside of codon boundaries.}
+\item{force_reading_frame}{Logical; if TRUE introns are inserted only between codons (in the reading
+frame, phase 0); if FALSE they may be inserted after any base.}
 
 \item{add_consensus_start}{Logical; whether to pad the 5' end with "aaaa".}
 
@@ -55,10 +62,13 @@ optimize_transgene(
 \item{tag_n_seqs}{Character vector; sequences for N-terminal molecular tags.}
 
 \item{tag_c_seqs}{Character vector; sequences for C-terminal molecular tags.}
+
+\item{pirna_targets}{Character vector of 20-base piRNA targets to screen against (the result's piRNA distances have one
+entry per element, in this order). Defaults to the whole \emph{C. elegans} database (\code{pirna_sequences}).}
 }
 \value{
 A complex list containing the final assembled sequence, structural coordinates,
-  optimization logs, and piRNA distance metrics.
+optimization logs, and piRNA distance metrics.
 }
 \description{
 Coordinates the full transgene assembly pipeline, including molecular tag attachment,

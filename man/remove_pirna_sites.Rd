@@ -4,7 +4,12 @@
 \alias{remove_pirna_sites}
 \title{Find and Remove piRNA Binding Sites}
 \usage{
-remove_pirna_sites(dna_seq, usage_column_name = "Ubiq", target_min_hamming = 2)
+remove_pirna_sites(
+  dna_seq,
+  usage_column_name = "Ubiq",
+  target_min_hamming = 2,
+  pirnas = WormTransgeneBuilder::pirna_sequences
+)
 }
 \arguments{
 \item{dna_seq}{Character string; the coding DNA sequence to shield.}
@@ -12,13 +17,19 @@ remove_pirna_sites(dna_seq, usage_column_name = "Ubiq", target_min_hamming = 2)
 \item{usage_column_name}{Character string; the codon table column used to select synonymous mutations.}
 
 \item{target_min_hamming}{Numeric; the safety threshold (default is usually 2 or 3 mismatches).}
+
+\item{pirnas}{Character vector of 20-base piRNA targets to shield against; by default the whole \emph{C. elegans} database.}
 }
 \value{
-A list containing the shielded `sequence`, `initial_dists`, and `final_dists`.
+A list containing the shielded \code{sequence}, \code{initial_dists}, and \code{final_dists}.
 }
 \description{
 Identifies 20-mer regions within the sequence that are dangerously homologous
 to known piRNAs (falling below the target Hamming distance). Mutates codons
 strictly within those vulnerable windows using synonymous alternatives to
 push the Hamming distance into the safe threshold.
+}
+\details{
+With \code{usage_column_name = "CAI1"} (the "High expression" method) the codon changes are chosen
+deterministically, one at a time, as the change with the smallest loss of Codon Adaptation Index.
 }

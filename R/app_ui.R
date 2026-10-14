@@ -59,7 +59,20 @@ app_ui <- function(request) {
               accordion_panel("3. Biological Shields",
                               checkboxInput("checkPirna", "Minimize piRNA homology", value = FALSE),
                               conditionalPanel("input.checkPirna == 1",
-                                               sliderInput("selectPiMM", "Minimum Hamming to known piRNAs", min=0, max=4, value=3, step=1)),
+                                               sliderInput("selectPiMM", "Minimum Hamming to known piRNAs", min=0, max=4, value=4, step=1),
+                                               # The databases of the species are independent; the user chooses every species the transgene
+                                               # will be expressed in. Default: C. elegans (with its type 2 piRNAs).
+                                               checkboxGroupInput("pirnaSpecies", "Avoid piRNAs of these species",
+                                                                  choiceNames = list("C. elegans",
+                                                                                     "C. briggsae (PRG-1 IP data; high confidence)",
+                                                                                     "C. remanei (called from small-RNA-seq; low confidence)",
+                                                                                     "C. brenneri (called from small-RNA-seq; low confidence)"),
+                                                                  choiceValues = c("elegans", "briggsae", "remanei", "brenneri"),
+                                                                  selected = "elegans"),
+                                               conditionalPanel("input.pirnaSpecies && input.pirnaSpecies.indexOf('elegans') > -1",
+                                                                checkboxInput("pirnaType2", "Include C. elegans type 2 piRNAs", value = TRUE)),
+                                               helpText("Each species has its own piRNA database. Select every species the transgene will be used in. ",
+                                                        "Codon optimization always uses C. elegans data. The remanei and brenneri sets rest on one small-RNA library per condition (Shi et al. 2013) and are low confidence; see the documentation.")),
                               checkboxInput("checkEnzySites", "Remove Restriction Sites", value = FALSE),
                               conditionalPanel("input.checkEnzySites == 1",
                                                # The list of enzymes (in groups) is filled from Enzymes.csv in app_server.R.
@@ -77,7 +90,7 @@ app_ui <- function(request) {
                                                selectInput("intropt", "Intron Type", choices = c("Loading...")),
                                                conditionalPanel("input.intropt == 'Synthetic'",
                                                                 sliderInput("num_synth_introns", "Number of Synthetic Introns", min=1, max=10, value=3, step=1),
-                                                                helpText("Average C. elegans exon length is 200 bp (Speith et al., Wormbook, 2014)")),
+                                                                helpText("The median C. elegans exon is 123 bp (the average, 200 bp, is skewed by a few very large exons; Spieth et al., WormBook, 2014)")),
                                                radioButtons("intdistop", "Intron Placement", choices = list("Early start" = 1, "Equidistant" = 2), inline = TRUE),
                                                checkboxInput("checkintframe", "Force in reading frame", value = TRUE)),
 

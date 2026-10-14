@@ -12,13 +12,22 @@
 #'   its target. A place scores 3 if the three bases before the intron are AAG, 2 if they are CAG and 1
 #'   if they end in AG; the highest score wins and the place nearest the target wins a tie. With
 #'   `in_frame = TRUE` the three bases before the intron are one codon.
-#' @return A list containing the modified sequence (`seq`) and a numeric vector
-#'   of the insertion base pairs (`insertions`), the number of bases of `cds_seq` before each intron.
+#' @param avoid_sites Optional character vector of recognition sites (IUPAC codes allowed, both strands as separate
+#'   entries, for example from `enzyme_search_sites()`) that the inserted introns must not create. The stretch checked
+#'   for each intron is the intron together with the exon bases on either side, so a site that is only formed where
+#'   the intron joins the exon is found too.
+#' @param pool Optional character vector of spare introns. When an intron would create one of `avoid_sites`, spare
+#'   introns are tried in random order (never one already used) until one does not. If none works, the intron is kept
+#'   and `unresolved` says so.
+#' @return A list containing the modified sequence (`seq`), a numeric vector
+#'   of the insertion base pairs (`insertions`), the number of bases of `cds_seq` before each intron, the introns
+#'   actually inserted (`introns`, which differ from the input only where one was swapped for one from `pool`) and
+#'   `unresolved`, the positions (in `introns`) of introns that still create a site in `avoid_sites`.
 #' @export
-insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = TRUE) {
+insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = TRUE, avoid_sites = NULL, pool = NULL) {
   cds_len <- nchar(cds_seq)
   num_introns <- length(introns)
-  if (num_introns == 0) return(list(seq = cds_seq, insertions = numeric(0)))
+  if (num_introns == 0) return(list(seq = cds_seq, insertions = numeric(0), introns = character(0), unresolved = integer(0)))
 
   total_codons <- floor(cds_len / 3)
   target_codons <- numeric(num_introns)
@@ -27,11 +36,13 @@ insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = 
     step <- total_codons / (num_introns + 1)
     for (i in 1:num_introns) target_codons[i] <- round(i * step)
   } else {
-    current_target <- 50
+    # One median exon (123 bp = 41 codons; Spieth et al. 2014) from the start, then one median exon between introns.
+    median_exon_codons <- 41
+    current_target <- median_exon_codons
     for (i in 1:num_introns) {
       if (current_target > total_codons - 15) current_target <- total_codons - 15
       target_codons[i] <- current_target
-      current_target <- current_target + 50
+      current_target <- current_target + median_exon_codons
     }
     target_codons <- sort(unique(target_codons))
     if (length(target_codons) < num_introns) {
@@ -98,6 +109,31 @@ insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = 
     actual_insertion_bps[i] <- sorted_matches[[1]]$pos * 3
   }
 
+  # Which introns create a site of `avoid_sites`? The exon bases next to the intron are included, up to one
+  # base less than the longest site on each side.
+  unresolved <- integer(0)
+  if (length(avoid_sites) > 0) {
+    avoid_regex <- paste(vapply(unique(toupper(avoid_sites)), enzyme_site_regex, ""), collapse = "|")
+    flank <- max(nchar(avoid_sites)) - 1
+    makes_site <- function(intron, pos) {
+      left <- substr(cds_seq, max(1, pos - flank + 1), pos)
+      right <- substr(cds_seq, pos + 1, pos + flank)
+      grepl(avoid_regex, toupper(paste0(left, intron, right)), perl = TRUE)
+    }
+    spare <- setdiff(tolower(pool), tolower(introns))
+    for (i in 1:num_introns) {
+      if (!makes_site(introns[i], actual_insertion_bps[i])) next
+      for (candidate in spare[sample.int(length(spare))]) {
+        if (!makes_site(candidate, actual_insertion_bps[i])) {
+          spare <- setdiff(spare, candidate)
+          introns[i] <- candidate
+          break
+        }
+      }
+      if (makes_site(introns[i], actual_insertion_bps[i])) unresolved <- c(unresolved, i)
+    }
+  }
+
   pieces <- list()
   last_pos <- 1
   for (i in 1:num_introns) {
@@ -108,7 +144,8 @@ insert_introns <- function(cds_seq, introns, spacing_type = "early", in_frame = 
   }
   pieces[[length(pieces) + 1]] <- substr(cds_seq, last_pos, cds_len)
 
-  return(list(seq = paste(pieces, collapse = ""), insertions = actual_insertion_bps))
+  return(list(seq = paste(pieces, collapse = ""), insertions = actual_insertion_bps,
+              introns = tolower(introns), unresolved = unresolved))
 }
 
 #' Probabilistic DNA Recoder
@@ -260,6 +297,9 @@ back_translate <- function(prot_seq) {
 #' @param remove_pirnas Logical; whether to actively shield against piRNA targets.
 #' @param target_min_hamming Numeric; threshold for piRNA exclusion.
 #' @param introns Character vector; sequence strings for intron insertion.
+#' @param intron_pool Optional character vector of spare introns (the synthetic intron list). With `enzymes`, an intron
+#'   that would create a recognition site of a requested enzyme (inside it or where it joins the exon) is swapped for a
+#'   spare one that does not. Introns that cannot be replaced produce a warning (see `insert_introns()`).
 #' @param spacing_type Character string; intron distribution logic ("early" or "equidistant").
 #' @param force_reading_frame Logical; if TRUE introns are inserted only between codons (in the reading
 #'   frame, phase 0); if FALSE they may be inserted after any base.
@@ -271,14 +311,17 @@ back_translate <- function(prot_seq) {
 #' @param is_protein Logical; signals the engine to apply naive back-translation to the input.
 #' @param tag_n_seqs Character vector; sequences for N-terminal molecular tags.
 #' @param tag_c_seqs Character vector; sequences for C-terminal molecular tags.
+#' @param pirna_targets Character vector of 20-base piRNA targets to screen against (the result's piRNA distances have one
+#'   entry per element, in this order). Defaults to the whole *C. elegans* database (`pirna_sequences`).
 #' @return A complex list containing the final assembled sequence, structural coordinates,
 #'   optimization logs, and piRNA distance metrics.
 #' @export
 optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI"), remove_pirnas = TRUE,
-                               target_min_hamming = 2, introns = NULL, spacing_type = "early",
+                               target_min_hamming = 2, introns = NULL, intron_pool = NULL, spacing_type = "early",
                                force_reading_frame = TRUE, add_consensus_start = FALSE, rbs_opt = FALSE,
                                promoter_seq = NULL, utr5_seq = NULL, utr3_seq = NULL, is_protein = FALSE,
-                               tag_n_seqs = NULL, tag_c_seqs = NULL) {
+                               tag_n_seqs = NULL, tag_c_seqs = NULL,
+                               pirna_targets = WormTransgeneBuilder::pirna_sequences) {
 
   if (is_protein) {
     current_seq <- back_translate(dna_seq)
@@ -328,7 +371,11 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
     )
   }
 
-  true_initial_dists <- if (!is_protein) get_pirna_distances(current_seq) else NULL
+  # For the GLO method the restriction sites to be removed are avoided already when the sequence is designed (see optimize_glo()); whatever is left,
+  # and anything the piRNA step creates, is removed afterwards.
+  glo_avoid <- if (opt_method == "GLO" && length(enzymes) > 0) enzyme_search_sites(enzymes, warn = FALSE) else NULL
+
+  true_initial_dists <- if (!is_protein) get_pirna_distances(current_seq, pirna_targets) else NULL
 
   # 2. Base Recoding & RBS Optimization
   if (rbs_opt && nchar(current_seq) >= 39) {
@@ -348,13 +395,13 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
       best_start <- optimize_rbs(cds_start, shield_col, num_candidates = 100)
     }
 
-    if (opt_method == "GLO") best_rest <- optimize_glo(cds_rest)
+    if (opt_method == "GLO") best_rest <- optimize_glo(cds_rest, avoid_sites = glo_avoid)
     else if (opt_method != "None") best_rest <- probabilistic_recode(cds_rest, usage_column_name = opt_method)
     else best_rest <- cds_rest
     current_seq <- paste0(best_start, best_rest)
 
   } else {
-    if (opt_method == "GLO") current_seq <- optimize_glo(current_seq)
+    if (opt_method == "GLO") current_seq <- optimize_glo(current_seq, avoid_sites = glo_avoid)
     else if (opt_method != "None") current_seq <- probabilistic_recode(current_seq, usage_column_name = opt_method)
   }
 
@@ -362,16 +409,16 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
 
   # 3. Global piRNA Shielding (Will naturally fix any issues from RBS generation)
   if (remove_pirnas) {
-    shield_col <- if(opt_method %in% c("None", "GLO", "Chance")) "Ubiq" else opt_method
-    pirna_out <- remove_pirna_sites(current_seq, usage_column_name = shield_col, target_min_hamming = target_min_hamming)
+    shield_col <- if (opt_method == "GLO") "GLO" else if (opt_method %in% c("None", "Chance")) "Ubiq" else opt_method
+    pirna_out <- remove_pirna_sites(current_seq, usage_column_name = shield_col, target_min_hamming = target_min_hamming, pirnas = pirna_targets)
     current_seq <- pirna_out$sequence
     final_dists <- pirna_out$final_dists
   } else {
-    final_dists <- get_pirna_distances(current_seq)
+    final_dists <- get_pirna_distances(current_seq, pirna_targets)
   }
 
   if (length(enzymes) > 0) {
-    shield_col <- if(opt_method %in% c("None", "GLO", "Chance")) "Ubiq" else opt_method
+    shield_col <- if (opt_method == "GLO") "GLO" else if (opt_method %in% c("None", "Chance")) "Ubiq" else opt_method
     current_seq <- remove_enzyme_sites(current_seq, enzymes, usage_column_name = shield_col)
   }
 
@@ -379,14 +426,24 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
 
   intron_insertions <- numeric(0)  # bases of optimized_cds after which each intron was inserted
   intron_lengths <- numeric(0)     # length of each inserted intron
+  introns_used <- character(0)     # the introns inserted (can differ from `introns` when one was swapped)
 
   if (!is.null(introns)) {
     introns <- tolower(gsub("[^ATGCatgc]", "", introns[!is.na(introns) & nchar(introns) > 0]))
     if (length(introns) > 0) {
-      intron_res <- insert_introns(current_seq, introns, spacing_type = spacing_type, in_frame = force_reading_frame)
+      intron_sites <- if (length(enzymes) > 0) enzyme_search_sites(enzymes, warn = FALSE) else NULL
+      intron_res <- insert_introns(current_seq, introns, spacing_type = spacing_type, in_frame = force_reading_frame,
+                                   avoid_sites = intron_sites, pool = intron_pool)
+      if (length(intron_res$unresolved) > 0) {
+        warning("Intron ", paste(intron_res$unresolved, collapse = ", "),
+                " creates a recognition site of a selected restriction enzyme (inside the intron or where it joins the exon) and no replacement was available.",
+                call. = FALSE)
+      }
+      introns <- intron_res$introns
       current_seq <- intron_res$seq
       intron_insertions <- intron_res$insertions
       intron_lengths <- nchar(introns)
+      introns_used <- introns
 
       if (length(tag_n_starts_base) > 0) {
         for (j in seq_along(tag_n_starts_base)) {
@@ -453,6 +510,7 @@ optimize_transgene <- function(dna_seq, opt_method = "Ubiq", enzymes = c("BsaI")
     tag_c_starts = final_tag_c_starts,
     tag_c_ends = final_tag_c_ends,
     intron_insertions = intron_insertions,
-    intron_lengths = intron_lengths
+    intron_lengths = intron_lengths,
+    introns_used = introns_used
   ))
 }

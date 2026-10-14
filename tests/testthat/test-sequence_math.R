@@ -39,3 +39,8 @@ test_that("calc_glo_score returns a finite number for a normal CDS", {
   expect_true(is.numeric(score))
   expect_true(is.finite(score))
 })
+
+test_that("calc_glo_per_codon is the GLO score divided by the number of codons", {
+  expect_equal(calc_glo_per_codon(fixture_cds()), calc_glo_score(fixture_cds()) / (nchar(fixture_cds()) / 3))
+  expect_equal(calc_glo_per_codon("ATGATG"), 0)
+})

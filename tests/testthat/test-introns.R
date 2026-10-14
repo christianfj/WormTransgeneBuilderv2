@@ -30,9 +30,10 @@ test_that("insertion points sit on codon boundaries, in increasing order", {
   }
 })
 
-test_that("early spacing places introns near codons 50 and 100", {
+test_that("early spacing places introns near codons 41 and 82 (one median exon of 123 bp apart)", {
   res <- insert_introns(intron_cds(), c(intron_a, intron_a), "early")
-  expect_true(all(abs(res$insertions / 3 - c(50, 100)) <= 15))
+  # AAG sits at every second codon here, so the best place is within 2 codons of the target.
+  expect_true(all(abs(res$insertions / 3 - c(41, 82)) <= 2))
 })
 
 test_that("equidistant spacing places introns near 1/3 and 2/3 of the CDS", {
@@ -110,7 +111,7 @@ test_that("the 'Force in reading frame' tick box in the app decides whether intr
       session$setInputs(
         intypeinput = 1, nameinput = "t", seqDNA = cds, seqPROT = "", selectCAI = "100",
         checkEnzySites = FALSE, Oenzymes = NULL, checkPirna = FALSE, selectPiMM = 3, checkTags = FALSE,
-        checkIntron = TRUE, intropt = "rps-0", num_synth_introns = 1, checkUTRs = FALSE,
+        checkIntron = TRUE, intropt = "rpsa-1", num_synth_introns = 1, checkUTRs = FALSE,
         checkPromoters = FALSE, checkboxRibo = FALSE, checkfouras = FALSE, checkTwisty = FALSE,
         checkintframe = framed, intdistop = "1")
       session$setInputs(actionSeq = 1)

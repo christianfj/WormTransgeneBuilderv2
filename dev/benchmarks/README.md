@@ -99,3 +99,20 @@ take the best time. Two scripts do this and also check the results are exactly i
   multi-core piRNA engine.
 - `compare_glo.R`: the previous `calc_glo_score()` / `optimize_glo()` (taken from git history)
   against the score-table versions, including the memory the score data uses.
+
+## Current baseline (2026-10-14)
+
+`results/bench_baseline-2026-10-14.csv` (commit 3a54f6c, standard suite, quiet machine, 1.4 minutes) is the baseline for any further
+optimization; compare new runs with it. The earlier file `bench_after-neb-enzymes.csv` (2026-09-30) is older than several deliberate changes,
+so 49 of its 54 fingerprints differ from the new baseline. Each difference was traced to a change made on purpose:
+
+| Cases whose fingerprint changed | Cause |
+|---|---|
+| `validate_for_synthesis` | new Twist rules (2026-10-14) and the lower-case fix |
+| `optimize_glo`, `pipeline_GLO` and every pipeline with GLO repairs | exact optimum, CAI tie-break, GLO-aware repairs |
+| `insert_introns_early` | intron spacing follows the median exon (41 codons) |
+| `insert_introns_equidistant` | the benchmark takes its three introns from the first rows of `Synthetic_Introns.csv`, which is a new pool; with the old introns the placement is identical (checked) |
+| `get_pirna_distances`, both piRNA shields, every `pipeline_*` | the default piRNA set is the rebuilt *C. elegans* database (18,207 entries instead of 17,849), so the distance vectors are longer; for the `None` method the recoded and final sequences are identical to the old code (checked), only the length of the distance vector in the result differs |
+| `export_genbank` | the comment now reads "GLO Score per codon" |
+
+The cases that did not change are the scores, recoding, restriction-site removal, ribosome-binding-site step and the viewer, as expected.

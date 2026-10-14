@@ -18,9 +18,9 @@ Paste a coding sequence (DNA or protein, up to 20 kb) and choose what to do with
 |---|---|
 | **Codon optimization** | Ubiquitous expression · High expression · Germline-optimized (GLO) · Random recoding (synonymous codons equally likely) · none |
 | **Molecular tags** | N- and C-terminal tags (for example SV40 NLS, *egl-13* NLS, linkers) |
-| **Biological shields** | Minimize piRNA homology (choose how many mismatches to known piRNAs are required) · remove restriction-enzyme sites (234 NEB enzymes, grouped as *commonly used*, *Golden Gate* and *all other*) |
+| **Biological shields** | Minimize piRNA homology (choose how many mismatches to known piRNAs are required, default 4, and whose piRNAs to avoid: *C. elegans* by default, optionally *C. briggsae*, *C. remanei*, *C. brenneri*) · remove restriction-enzyme sites (234 enzymes sold by NEB according to REBASE, grouped as *commonly used*, *Golden Gate* and *all other*) |
 | **Gene architecture** | Ribosome-binding-site optimization (ViennaRNA) · consensus start (aaaaATG) · native or synthetic introns · 5' and 3' UTRs · promoters (38 validated 300 bp promoters, grouped by neuron and tissue) |
-| **Synthesis checks** | Twist Bioscience guidelines (homopolymers, global and local GC content) |
+| **Synthesis checks** | Twist Bioscience guidelines, standard and high complexity separately (homopolymers, global and local GC content, repeats, length, ccdB) |
 
 The result is shown in a sequence viewer (promoter, UTRs, tags, introns, piRNA and enzyme sites, non-optimal
 codons) and can be downloaded as an annotated GenBank file (opens in ApE, Benchling and similar programs).
@@ -62,7 +62,7 @@ run_app()
 
 ## Testing
 
-`devtools::test()` runs about 3,650 automated checks (the amino-acid sequence is unchanged, requested
+`devtools::test()` runs about 4,180 automated checks (the amino-acid sequence is unchanged, requested
 restriction sites are gone, piRNA matches stay under the threshold, GenBank files are well formed, and
 so on). They also run on GitHub on every change.
 

@@ -11,7 +11,7 @@ test_that("probabilistic_recode keeps the protein, length and alphabet", {
 
 test_that("probabilistic_recode works with every usage column", {
   cds <- fixture_cds()
-  cols <- c("Ubiq", "CAI1", "BringMansWeights", "Chance", "aCDS", "HighRCSU")
+  cols <- c("Ubiq", "CAI1", "BringMansWeights", "Chance")
   for (col in cols) {
     set.seed(1)
     out <- probabilistic_recode(cds, col)

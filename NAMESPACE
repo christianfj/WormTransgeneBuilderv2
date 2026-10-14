@@ -2,6 +2,7 @@
 
 export(calc_cai)
 export(calc_gc_content)
+export(calc_glo_per_codon)
 export(calc_glo_score)
 export(check_cds_validity)
 export(export_genbank)

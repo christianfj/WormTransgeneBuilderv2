@@ -1,8 +1,8 @@
 # 1. Load the raw laboratory CSVs
-codon_freqs <- read.csv("data-raw/Codon_frequencies.csv", stringsAsFactors = FALSE)
-
-# Only keep the columns you actually intend to use
-codon_freqs <- codon_freqs[, c("Codon", "Amino", "Ubiq", "CAI1", "BringMansWeights", "Chance", "aCDS", "HighRCSU")]
+# (Codon_frequencies.csv has exactly the columns the app uses: Codon, Amino, Ubiq, Chance, CAI1, BringMansWeights. Five more columns,
+# Germ, Neur, Soma, aCDS and HighRCSU, were removed on 2026-10-07 because nothing used them; they are in the git history, and
+# docs/DATA.md says how they were made.)
+codon_freqs <- read.csv("inst/extdata/Codon_frequencies.csv", stringsAsFactors = FALSE)
 
 # 2. CRUCIAL: Set row names to the codons themselves
 # This allows the optimizer to do fast lookups like: codon_freqs["ATG", "Amino"]

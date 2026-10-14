@@ -48,7 +48,7 @@ export_genbank <- function(locus_name, sequence, starts=c(), ends=c(), colors=c(
 
   if (!is.null(cai_score)) FileLines <- append(FileLines, paste("COMMENT     Codon Adaptation Index", cai_score))
   if (!is.null(gc_score)) FileLines <- append(FileLines, paste("COMMENT     GC", gc_score))
-  if (!is.null(glo_score)) FileLines <- append(FileLines, paste("COMMENT     GLO Score", glo_score))
+  if (!is.null(glo_score)) FileLines <- append(FileLines, paste("COMMENT     GLO Score per codon", glo_score))
   if (!is.null(input_seq)) FileLines <- append(FileLines, paste("COMMENT     Input sequence:", input_seq))
 
   if (length(extracomments) > 0) {

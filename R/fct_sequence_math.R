@@ -72,3 +72,16 @@ calc_glo_score <- function(dna_seq) {
 
   return(total_score)
 }
+
+#' GLO Score per Codon
+#'
+#' The GLO score divided by the number of codons, so that sequences of different length can be compared.
+#'
+#' @param dna_seq Character string; the input DNA sequence.
+#' @return A numeric value: `calc_glo_score()` divided by the number of complete codons (0 for fewer than four codons).
+#' @export
+calc_glo_per_codon <- function(dna_seq) {
+  n_codons <- nchar(gsub("[^ATGCNatgcn]", "", dna_seq)) %/% 3
+  if (n_codons < 4) return(0)
+  calc_glo_score(dna_seq) / n_codons
+}

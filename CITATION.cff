@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below. A manuscript descri
 title: "WormTransgeneBuilder: an online app for comprehensive C. elegans transgene design"
 type: software
 version: 2.0.0
-date-released: 2026-10-04
+date-released: 2026-10-14
 license: GPL-3.0-only
 repository-code: "https://github.com/christianfj/WormTransgeneBuilderv2"
 url: "https://www.wormbuilder.org/transgenebuilder/"

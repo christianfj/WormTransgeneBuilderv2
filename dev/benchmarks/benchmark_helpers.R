@@ -14,6 +14,17 @@ bench_with_seed <- function(seed, code) WormTransgeneBuilder:::with_local_seed(s
 # R version.
 fingerprint <- function(x) rlang::hash(x)
 
+# The piRNA 20-mers the benchmark genes are built from: the 17,849 targets of the database as it was before the rebuild
+# (2026-10), kept in a file so that the benchmark genes, and the reference results captured on them, do not change when the
+# database does. (The shields can still be run against any set with their `pirnas` argument.)
+benchmark_pirna_targets <- function() {
+  f <- "pirna_targets_before_rebuild.txt"
+  candidates <- c(file.path("dev", "benchmarks", f), file.path("..", "..", "dev", "benchmarks", f), file.path("benchmarks", f))
+  path <- Filter(file.exists, candidates)
+  if (length(path) == 0) stop("Cannot find ", f, " (looked in ", paste(candidates, collapse = ", "), ")")
+  readLines(path[[1]])
+}
+
 codons_of <- function(dna) substring(dna, seq(1, nchar(dna) - 2, 3), seq(3, nchar(dna), 3))
 
 # piRNA 20-mers that can sit in frame inside a coding sequence: 20 bases plus one padding
@@ -23,7 +34,7 @@ pirna_blocks <- function(best_only = FALSE, limit = Inf) {
   cf <- WormTransgeneBuilder::codon_freqs
   stops <- c("TAA", "TAG", "TGA")
   best <- toupper(cf$Codon[cf$CAI1 == 1 & cf$Amino != "X"])
-  p <- WormTransgeneBuilder::pirna_sequences
+  p <- benchmark_pirna_targets()
   p <- unique(p[!is.na(p)])
   blocks <- character(0)
   for (x in p) {

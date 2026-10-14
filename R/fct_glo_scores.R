@@ -1,7 +1,7 @@
 #' GLO Score Table and Lookup
 #'
 #' The Germline Optimization (GLO) score of a coding sequence is the sum, over its 12-base
-#' windows, of a score that depends on the 12-mer (Dickinson et al.). There is a score for
+#' windows, of a score that depends on the 12-mer (D. J. Dickinson, Fielmich et al. 2018). There is a score for
 #' every possible 12-mer of A/C/G/T: 4^12 = 16,777,216 of them.
 #'
 #' The scores are kept in one plain numeric vector, in alphabetical order of the 12-mers

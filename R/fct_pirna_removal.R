@@ -7,18 +7,20 @@
 #' `scan_kmers_against_pirnas()`), which is much faster than comparing characters.
 #'
 #' @param dna_seq Character string; the input DNA sequence.
+#' @param pirnas Character vector of 20-base piRNA targets to compare with; by default the whole *C. elegans* database
+#'   (`pirna_sequences`). The result has one distance per element, in the same order.
 #' @return A numeric vector of the minimum Hamming distances for each known piRNA.
 #' @export
-get_pirna_distances <- function(dna_seq) {
+get_pirna_distances <- function(dna_seq, pirnas = WormTransgeneBuilder::pirna_sequences) {
   current_seq <- toupper(gsub("[^ATGCNatgcn]", "", dna_seq))
   seq_len <- nchar(current_seq)
-  if (seq_len < 20) return(rep(NA, length(WormTransgeneBuilder::pirna_sequences)))
+  if (seq_len < 20) return(rep(NA, length(pirnas)))
 
   starts <- 1:(seq_len - 19)
   kmers <- substring(current_seq, starts, starts + 19)
 
   # The minimum distance for each piRNA across the entire sequence (NA if it cannot be compared).
-  scan_kmers_against_pirnas(kmers)$col_min
+  scan_kmers_against_pirnas(kmers, pirna_reference(pirnas))$col_min
 }
 
 #' Shield piRNA Sites with the Smallest CAI Loss (deterministic)
@@ -39,12 +41,15 @@ get_pirna_distances <- function(dna_seq) {
 #' @param target_min_hamming Numeric; windows closer than this to a piRNA are fixed.
 #' @param score_column Character string; graded codon-weight column in `codon_freqs`.
 #' @param max_steps Integer; safety limit on the number of codon changes.
+#' @param change_score Optional function `(seq_vec, codon_index, new_codon)` giving the score of a change (higher is better); by
+#'   default the change in log codon weight (`glo_change_gain()` for the "GLO" method).
 #' @return The shielded sequence. A warning is given if windows remain below the
 #'   threshold because no synonymous change could improve them.
 #' @noRd
 remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
                                        score_column = "BringMansWeights", max_steps = 2000,
-                                       initial_scan = NULL) {
+                                       initial_scan = NULL, pirnas = WormTransgeneBuilder::pirna_sequences,
+                                       change_score = NULL) {
   cf <- WormTransgeneBuilder::codon_freqs
   codons_up <- toupper(cf$Codon)
   codon_to_aa <- setNames(cf$Amino, codons_up)
@@ -52,7 +57,6 @@ remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
   aa_to_syn <- split(codons_up, cf$Amino)
   log_w <- function(codon) log(pmax(weights[codon], 1e-6))
 
-  pirnas <- WormTransgeneBuilder::pirna_sequences
 
   # 20-mer windows of `dna`.
   windows_of <- function(dna) {
@@ -71,7 +75,7 @@ remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
   n <- length(seq_vec)
   # The caller has usually scanned the whole sequence already; reuse that instead of
   # scanning it again.
-  wmin <- if (is.null(initial_scan)) window_min_dists(current_seq, pirna_reference())
+  wmin <- if (is.null(initial_scan)) window_min_dists(current_seq, pirna_reference(pirnas))
           else pmin(initial_scan$row_min, target_min_hamming)
   unfixable <- integer(0)
 
@@ -90,7 +94,7 @@ remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
     region_lo <- max(1, (codon_range[1] - 1) * 3 + 1 - 19)
     region_hi <- min(length(wmin), (codon_range[length(codon_range)] - 1) * 3 + 3)
     region_dna <- paste(seq_vec[region_lo:(region_hi + 19)], collapse = "")
-    region_min <- scan_kmers_against_pirnas(windows_of(region_dna), pirna_reference())$col_min
+    region_min <- scan_kmers_against_pirnas(windows_of(region_dna), pirna_reference(pirnas))$col_min
     relevant <- make_pirna_reference(pirnas[which(region_min <= target_min_hamming + 2)])
 
     best <- NULL  # list(score, gain, lo, new_local, codon_index, new_codon)
@@ -117,7 +121,7 @@ remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
         gain <- new_local[i - lo + 1] - old_local[i - lo + 1]
         if (gain <= 0) next
 
-        score <- unname(log_w(alt) - log_w(old_codon))
+        score <- if (is.null(change_score)) unname(log_w(alt) - log_w(old_codon)) else change_score(seq_vec, ci, alt)
         better <- is.null(best) || score > best$score + 1e-12 ||
           (abs(score - best$score) <= 1e-12 && gain > best$gain)
         if (better) best <- list(score = score, gain = gain, lo = lo, new_local = new_local,
@@ -151,15 +155,18 @@ remove_pirna_sites_max_cai <- function(current_seq, target_min_hamming,
 #' @param dna_seq Character string; the coding DNA sequence to shield.
 #' @param usage_column_name Character string; the codon table column used to select synonymous mutations.
 #' @param target_min_hamming Numeric; the safety threshold (default is usually 2 or 3 mismatches).
+#' @param pirnas Character vector of 20-base piRNA targets to shield against; by default the whole *C. elegans* database.
 #' @details With `usage_column_name = "CAI1"` (the "High expression" method) the codon changes are chosen
-#'   deterministically, one at a time, as the change with the smallest loss of Codon Adaptation Index.
+#'   deterministically, one at a time, as the change with the smallest loss of Codon Adaptation Index; with `"GLO"` the
+#'   change with the smallest loss of GLO score is chosen in the same way.
 #' @return A list containing the shielded `sequence`, `initial_dists`, and `final_dists`.
 #' @export
-remove_pirna_sites <- function(dna_seq, usage_column_name = "Ubiq", target_min_hamming = 2) {
+remove_pirna_sites <- function(dna_seq, usage_column_name = "Ubiq", target_min_hamming = 2,
+                               pirnas = WormTransgeneBuilder::pirna_sequences) {
   current_seq <- toupper(gsub("[^ATGCNatgcn]", "", dna_seq))
 
   if (nchar(current_seq) < 20) {
-    initial_dists <- get_pirna_distances(current_seq)  # NA for every piRNA
+    initial_dists <- get_pirna_distances(current_seq, pirnas)  # NA for every piRNA
     return(list(sequence = current_seq, initial_dists = initial_dists, final_dists = initial_dists))
   }
 
@@ -169,7 +176,7 @@ remove_pirna_sites <- function(dna_seq, usage_column_name = "Ubiq", target_min_h
 
   # One scan of the sequence gives both the distance to each piRNA and the windows that
   # are closer than the threshold (this used to be done in two separate full passes).
-  scan <- scan_kmers_against_pirnas(kmers, threshold = target_min_hamming)
+  scan <- scan_kmers_against_pirnas(kmers, pirna_reference(pirnas), threshold = target_min_hamming)
   initial_dists <- scan$col_min
   if (all(is.na(initial_dists))) {
     return(list(sequence = current_seq, initial_dists = initial_dists, final_dists = initial_dists))
@@ -177,10 +184,12 @@ remove_pirna_sites <- function(dna_seq, usage_column_name = "Ubiq", target_min_h
 
   # "High expression" (CAI1) has nothing to sample from (all other codon weights are 0),
   # so use the deterministic, smallest-CAI-loss search instead of random re-rolling.
-  if (identical(usage_column_name, "CAI1")) {
-    final_seq <- remove_pirna_sites_max_cai(current_seq, target_min_hamming, "BringMansWeights",
-                                            initial_scan = scan)
-    final_dists <- if (identical(final_seq, current_seq)) initial_dists else get_pirna_distances(final_seq)
+  if (identical(usage_column_name, "CAI1") || identical(usage_column_name, "GLO")) {
+    glo <- identical(usage_column_name, "GLO")   # "GLO": the least harmful change is the one that costs the least GLO score
+    final_seq <- remove_pirna_sites_max_cai(current_seq, target_min_hamming, if (glo) "Ubiq" else "BringMansWeights",
+                                            initial_scan = scan, pirnas = pirnas,
+                                            change_score = if (glo) glo_change_gain else NULL)
+    final_dists <- if (identical(final_seq, current_seq)) initial_dists else get_pirna_distances(final_seq, pirnas)
     return(list(sequence = final_seq, initial_dists = initial_dists, final_dists = final_dists))
   }
 
@@ -222,7 +231,7 @@ remove_pirna_sites <- function(dna_seq, usage_column_name = "Ubiq", target_min_h
   }
 
   final_seq <- paste(seq_vec, collapse = "")
-  final_dists <- get_pirna_distances(final_seq)
+  final_dists <- get_pirna_distances(final_seq, pirnas)
 
   return(list(sequence = final_seq, initial_dists = initial_dists, final_dists = final_dists))
 }
