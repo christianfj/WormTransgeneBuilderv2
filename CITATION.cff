@@ -7,6 +7,14 @@ date-released: 2026-10-14
 license: GPL-3.0-only
 repository-code: "https://github.com/christianfj/WormTransgeneBuilderv2"
 url: "https://www.wormbuilder.org/transgenebuilder/"
+doi: 10.5281/zenodo.23395184
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23395185
+    description: "Version 2.0.0 (this version)"
+  - type: doi
+    value: 10.5281/zenodo.23395184
+    description: "All versions (always the latest)"
 abstract: >-
   Full gene synthesis is increasingly affordable and cost-effective relative to standard cloning.
   WormTransgeneBuilder is a one-stop online app for designing C. elegans transgenes. It offers codon

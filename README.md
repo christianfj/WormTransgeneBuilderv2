@@ -70,7 +70,10 @@ so on). They also run on GitHub on every change.
 
 A manuscript is in preparation. Until it is available, please cite the software as in
 [CITATION.cff](CITATION.cff) (GitHub shows a "Cite this repository" button). Every tagged release is
-archived on Zenodo with a DOI: *DOI to be added after the first release*.
+archived on Zenodo with a DOI.
+
+* **To cite the software in general** (this DOI always points to the latest version): [10.5281/zenodo.23395184](https://doi.org/10.5281/zenodo.23395184)
+* **To cite version 2.0.0 exactly** (released 2026-10-14, archived 2026-10-15): [10.5281/zenodo.23395185](https://doi.org/10.5281/zenodo.23395185)
 
 ## Authors and licence
 
