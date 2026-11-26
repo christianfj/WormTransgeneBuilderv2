@@ -17,13 +17,19 @@ Quote them with any design.
 Each release carries a saved copy of its image (with a checksum) as a file attached to the GitHub release. Zenodo's automatic GitHub archiving stores only the *source code* of a release, so the saved image is uploaded to Zenodo separately, by hand, and listed in the same record or linked from it (see the DOI in the README).
 
 ```sh
-sha256sum -c wormtransgenebuilder-v2.0.0-linux-amd64.tar.gz.sha256   # check the download
-docker load < wormtransgenebuilder-v2.0.0-linux-amd64.tar.gz
-docker run --rm -p 3838:3838 ghcr.io/christianfj/wormtransgenebuilderv2:v2.0.0
+# Intel/AMD computers, Windows and most servers (amd64); use "linux-arm64" for Apple Silicon Macs (M1 and later):
+shasum -a 256 -c wormtransgenebuilder-v2.0.1-linux-amd64.tar.gz.sha256      # check the download (on Linux: sha256sum -c ...)
+docker load < wormtransgenebuilder-v2.0.1-linux-amd64.tar.gz
+docker run --rm -p 3838:3838 ghcr.io/christianfj/wormtransgenebuilderv2:v2.0.1
 ```
 
-Open <http://localhost:3838>. The image is built for Intel/AMD processors (amd64); on Apple Silicon Docker
-runs it by emulation, or you can rebuild it (below).
+Open <http://localhost:3838>. From version 2.0.1 on, each release has **two** images: `amd64` (Intel/AMD processors, Windows and
+most servers) and `arm64` (Apple Silicon Macs and arm64 servers). The name `ghcr.io/christianfj/wormtransgenebuilderv2:<version>` is
+one multi-architecture image: `docker pull` and `docker run` choose the right one for your computer automatically. The saved files
+(`...-linux-amd64.tar.gz` and `...-linux-arm64.tar.gz`) are for loading without a registry; use the one that matches your computer
+(`uname -m` prints `x86_64` for amd64 and `arm64` for Apple Silicon). Version 2.0.0 has an amd64 image only; on Apple Silicon Docker
+runs it by emulation, which is slower. Each release also has a small file `wormtransgenebuilder-<version>-image-digest.txt` with the
+exact digests of its images.
 
 ## Rebuilding the image
 
@@ -38,7 +44,7 @@ for a test sequence.
 
 ```r
 renv::restore()        # exact packages
-devtools::test()       # about 3,650 checks, about 3 minutes
+devtools::test()       # about 4,180 checks, about 3 minutes
 ```
 
 `RNAfold` (ViennaRNA 2.7.2) is needed for the ribosome-binding-site tests, which skip themselves otherwise.
